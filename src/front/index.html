@@ -12,6 +12,7 @@
 
     <!-- Сайдбар выбора группы -->
     <aside id="sidebar" aria-hidden="true">
+        <button id="sidebar-close" class="sidebar-close-btn" aria-label="Закрыть меню">&times;</button>
         <h3>Настройки</h3>
         <label for="group-select">Группа</label>
         <select id="group-select">
@@ -23,6 +24,7 @@
             <option value="Группа 6">Группа 6</option>
         </select>
         <button id="apply-group" type="button">Применить</button>
+        <button id="week-details-btn" class="sidebar-week-btn" type="button">Расписание на неделю</button>
     </aside>
 
     <!-- Обёртка: основной контент -->
@@ -33,7 +35,6 @@
                 <button class="nav-btn" id="prev-day" type="button" aria-label="Предыдущий день">←</button>
                 <input type="date" id="date-input" aria-label="Дата">
                 <button class="nav-btn" id="next-day" type="button" aria-label="Следующий день">→</button>
-                <button class="details-btn" id="week-details-btn" type="button">Подробнее</button>
             </div>
 
             <!-- Ряд: карта этажа (модель + пары) и блок выбора этажа -->

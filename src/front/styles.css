@@ -324,6 +324,13 @@ canvas {
 }
 
 /* ===== SIDEBAR ===== */
+
+
+#sidebar-close {
+    display: none;
+}
+
+
 #sidebar-toggle {
     position: fixed;
     top: var(--space-4);
@@ -358,6 +365,10 @@ canvas {
     box-sizing: border-box;
     overflow-y: auto;
     border-right: 1px solid var(--border);
+}
+
+#sidebar .sidebar-week-btn {
+    margin-top: var(--space-3);
 }
 
 #sidebar.open { left: 0; }
@@ -654,9 +665,32 @@ canvas {
         to { opacity: 1; transform: translateY(-50%) scale(1); }
 }
 
-    #sidebar {
-        width: 240px;
-        left: -260px;
+        #sidebar #sidebar-close {
+        display: flex;
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 24px;               /* фиксированная ширина */
+        height: 24px;              /* фиксированная высота */
+        align-items: center;
+        justify-content: center;
+        background: transparent !important;  /* убираем фон */
+        border: none;
+        font-size: 22px;           /* размер символа */
+        line-height: 1;
+        color: var(--ink-secondary);
+        cursor: pointer;
+        padding: 0 !important;     /* убираем унаследованный padding */
+        margin: 0;
+        box-sizing: border-box;
+        z-index: 50;               /* поверх остальных элементов */
+        pointer-events: auto;
+        transition: color 0.15s ease;
+    }
+
+    #sidebar #sidebar-close:hover {
+        background: transparent !important;
+        color: var(--ink);
     }
 
     #sidebar-toggle {
@@ -666,6 +700,7 @@ canvas {
     #sidebar.open {
         left: 0;
     }
+    
 }
 
 /* Узкие экраны (телефоны) */

@@ -656,3 +656,7 @@ document.addEventListener('touchend', () => {
     swipeStartX = null;
     swipeStartY = null;
 });
+
+document.getElementById('sidebar-close').addEventListener('click', () => {
+    setSidebarOpen(false);
+});
