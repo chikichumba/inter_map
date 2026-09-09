@@ -7,10 +7,10 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- Кнопка открытия сайдбара -->
+    <!-- кнопка открытия сайдбара (на десктопе) -->
     <button id="sidebar-toggle" aria-label="Открыть настройки" aria-expanded="false" aria-controls="sidebar">☰</button>
 
-    <!-- Сайдбар выбора группы -->
+    <!-- сайдбар выбора группы -->
     <aside id="sidebar" aria-hidden="true">
         <button id="sidebar-close" class="sidebar-close-btn" aria-label="Закрыть меню">&times;</button>
         <h3>Настройки</h3>
@@ -27,20 +27,20 @@
         <button id="week-details-btn" class="sidebar-week-btn" type="button">Расписание на неделю</button>
     </aside>
 
-    <!-- Обёртка: основной контент -->
+    <!-- основной контент -->
     <div id="app-wrapper">
         <div id="main-container">
-            <!-- Панель выбора даты -->
+            <!-- панель выбора даты -->
             <div id="date-panel">
                 <button class="nav-btn" id="prev-day" type="button" aria-label="Предыдущий день">←</button>
                 <input type="date" id="date-input" aria-label="Дата">
                 <button class="nav-btn" id="next-day" type="button" aria-label="Следующий день">→</button>
             </div>
 
-            <!-- Ряд: карта этажа (модель + пары) и блок выбора этажа -->
+            <!-- блок с моделью и выбором этажа -->
             <div id="content-row">
                 <div id="map-column">
-                    <!-- Контейнер 3D-модели -->
+                    <!-- контейнер 3d-модели -->
                     <div id="model-container">
                         <div id="model-loading">
                             <div class="spinner" role="status" aria-label="Загрузка модели"></div>
@@ -52,17 +52,17 @@
                             <span class="legend-item"><span class="dot past"></span>Прошло</span>
                         </div>
                         <div id="click-info">Кликните по объекту</div>
-                        <!-- Заглушка для этажей, кроме 2-го -->
+                        <!-- заглушка для этажей, кроме второго -->
                         <div id="stub-overlay"><span>В разработке</span></div>
                     </div>
 
-                    <!-- Нижняя панель с парами, по ширине совпадает с моделью -->
+                    <!-- нижняя панель с парами -->
                     <div id="pairs-container">
                         <div class="no-pairs">Выберите группу, чтобы увидеть пары</div>
                     </div>
                 </div>
 
-                <!-- Блок выбора этажа: только цифры, по высоте совпадает с картой -->
+                <!-- блок выбора этажа (вертикальные цифры) -->
                 <nav id="floor-selector" aria-label="Выбор этажа">
                     <div class="floor-numbers">
                         <span data-floor="2" role="button" tabindex="0">2</span>
@@ -76,14 +76,14 @@
         </div>
     </div>
 
-    <!-- Всплывающая панель кабинета -->
+    <!-- всплывающая панель кабинета -->
     <div id="room-panel" role="dialog" aria-labelledby="room-panel-title" aria-modal="false">
         <button class="close-btn" id="room-panel-close" type="button" aria-label="Закрыть">&times;</button>
         <h2 id="room-panel-title">Кабинет</h2>
         <div id="room-panel-content"></div>
     </div>
 
-    <!-- Импорт Three.js -->
+    <!-- импорт three.js -->
     <script type="importmap">
         {
             "imports": {

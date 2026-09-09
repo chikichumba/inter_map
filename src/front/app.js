@@ -1,28 +1,28 @@
-// ===== ИМПОРТЫ =====
+// импорты библиотек
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-// ===== НАСТРОЙКА ЗУМА =====
+// определение мобильного устройства для настройки зума
 const isMobile = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
     || window.matchMedia('(pointer: coarse)').matches;
 const INITIAL_ZOOM_DESKTOP = 2.6;
 const INITIAL_ZOOM_MOBILE = 1.5;
 const INITIAL_ZOOM = isMobile ? INITIAL_ZOOM_MOBILE : INITIAL_ZOOM_DESKTOP;
 
-// ===== КОНФИГУРАЦИЯ МОДЕЛИ =====
+// конфигурация модели
 const GLB_URL = './glbs/2ndfloor.glb';
 const DIAGONAL_MARGIN = 2.0;
 const FRUSTUM_MARGIN = 1.0;
 const FIXED_AZIMUTH = 0;
 const FIXED_POLAR = 0.9472;
 
-// ===== НАСТРОЙКА API =====
+// настройки api
 const API_BASE_URL = 'https://api.example.com';
 const SCHEDULE_ENDPOINT = '/schedule';
 const WEEK_SCHEDULE_PAGE_URL = 'week_schedule.html';
 
-// ===== КАБИНЕТЫ (по id) =====
+// описание кабинетов по идентификаторам в модели
 const roomConfig = {
     '6419': { number: '', name: 'Пожарная лестница', showPanel: true },
     '6417': { number: 'Ж', name: 'Туалет', showPanel: true },
@@ -44,13 +44,14 @@ const roomConfig = {
     '6400': { number: '203', name: 'Раздевалка', showPanel: true },
     '6433': { number: '202', name: 'Гардеробная', showPanel: true },
     '6429': { number: '201', name: 'Коворкинг', showPanel: true },
-    // Комната ground_1 не показывает панель
+    // комната ground_1 не показывает панель
     'ground_1': { number: '', name: 'No info', showPanel: false }
 };
 
+// резервный массив (не используется, если конфиг задан)
 const roomConfigByIndex = [];
 
-// ===== ГЛОБАЛЬНОЕ СОСТОЯНИЕ =====
+// глобальное состояние приложения
 let currentGroup = null;
 let currentSchedule = [];
 let highlightedMeshes = [];
@@ -59,7 +60,7 @@ let activeHighlightedMesh = null;
 let currentDate = new Date().toISOString().slice(0, 10);
 let currentFloor = 2;
 
-// ===== DOM ЭЛЕМЕНТЫ =====
+// ссылки на dom-элементы
 const container = document.getElementById('model-container');
 const modelLoading = document.getElementById('model-loading');
 const clickInfoDiv = document.getElementById('click-info');
@@ -81,23 +82,26 @@ const floorNumbers = document.querySelectorAll('.floor-numbers span');
 
 dateInput.value = currentDate;
 
-// ===== СЦЕНА =====
+// инициализация three.js сцены
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xf5f2ea);
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
 camera.position.set(0, 10, 0);
 camera.lookAt(0, 0, 0);
 
+// создание рендерера и добавление его в контейнер
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(container.clientWidth, container.clientHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 container.appendChild(renderer.domElement);
 
+// добавление освещения
 scene.add(new THREE.AmbientLight(0xffffff, 0.7));
 const dirLight = new THREE.DirectionalLight(0xffffff, 1);
 dirLight.position.set(10, 20, 10);
 scene.add(dirLight);
 
+// настройка управления камерой
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 0, 0);
 controls.enableDamping = true;
@@ -113,7 +117,7 @@ controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, R
 controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
 controls.update();
 
-
+// на мобильных отключаем вращение, оставляем панорамирование и зум
 if (isMobile) {
     controls.enableRotate = false;
     controls.touches.ONE = THREE.TOUCH.PAN;
@@ -121,6 +125,7 @@ if (isMobile) {
 }
 controls.update();
 
+// инициализация raycaster для обработки кликов
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 let roomMeshes = [];
@@ -128,7 +133,7 @@ const pointerDownPos = new THREE.Vector2();
 let isPointerDown = false;
 const DRAG_THRESHOLD = 5;
 
-// ===== ЗАГРУЗКА МОДЕЛИ =====
+// загрузка glb-модели
 const loader = new GLTFLoader();
 loader.load(
     GLB_URL,
@@ -136,10 +141,12 @@ loader.load(
         const model = gltf.scene;
         scene.add(model);
 
+        // собираем все меши в массив
         model.traverse((child) => {
             if (child.isMesh) roomMeshes.push(child);
         });
 
+        // сопоставляем каждый меш с конфигурацией кабинета
         roomMeshes.forEach((mesh, index) => {
             let config = null;
             let roomId = null;
@@ -169,6 +176,7 @@ loader.load(
                 mesh.userData.showPanel = false;
             }
 
+            // клонируем материал, чтобы можно было менять цвет индивидуально
             if (mesh.material) {
                 mesh.material = Array.isArray(mesh.material)
                     ? mesh.material.map((mat) => mat.clone())
@@ -176,6 +184,7 @@ loader.load(
             }
         });
 
+        // подгоняем камеру под модель и запускаем анимацию
         fitCameraToModel(model);
         resetAllRoomsToWhite();
         modelLoading.classList.add('hidden');
@@ -189,6 +198,7 @@ loader.load(
     }
 );
 
+// функция подгонки камеры под размеры модели
 function fitCameraToModel(model) {
     const box = new THREE.Box3().setFromObject(model);
     const center = box.getCenter(new THREE.Vector3());
@@ -198,6 +208,7 @@ function fitCameraToModel(model) {
     model.position.sub(center);
     controls.target.set(0, 0, 0);
 
+    // вычисляем позицию камеры с учётом фиксированных углов
     const camDistance = diagonal * DIAGONAL_MARGIN + 10;
     const polar = FIXED_POLAR;
     const azimuth = FIXED_AZIMUTH;
@@ -208,6 +219,7 @@ function fitCameraToModel(model) {
     );
     camera.lookAt(controls.target);
 
+    // настраиваем ортографическую камеру под размеры модели
     const frustumSize = diagonal * FRUSTUM_MARGIN;
     const aspect = container.clientWidth / container.clientHeight;
     camera.left = -frustumSize * aspect / 2;
@@ -221,11 +233,12 @@ function fitCameraToModel(model) {
     controls.update();
 }
 
-// ===== API =====
+// вспомогательная функция получения строки даты в формате iso
 function getDateString(date) {
     return date.toISOString().slice(0, 10);
 }
 
+// запрос расписания с сервера (или фолбэк при ошибке)
 async function fetchSchedule(group, dateStr = currentDate) {
     if (currentFloor !== 2) return [];
     try {
@@ -244,7 +257,7 @@ async function fetchSchedule(group, dateStr = currentDate) {
     }
 }
 
-// ===== ЛОГИКА ОТОБРАЖЕНИЯ =====
+// определение статуса пары (прошла, идёт, предстоит)
 function getPairStatus(pair) {
     const now = new Date();
     const [startStr, endStr] = pair.time.split(' - ');
@@ -257,6 +270,7 @@ function getPairStatus(pair) {
     return 'past';
 }
 
+// обновление списка пар в нижней панели
 function updatePairsUI(schedule) {
     pairsContainer.innerHTML = '';
     if (schedule.length === 0) {
@@ -266,6 +280,7 @@ function updatePairsUI(schedule) {
     schedule.forEach((pair) => {
         const card = document.createElement('div');
         card.className = `pair-card ${getPairStatus(pair)}`;
+        card.dataset.roomId = pair.roomId;
         card.innerHTML = `
             <div class="pair-time">${pair.time}</div>
             <div class="pair-name">${pair.name}</div>
@@ -276,6 +291,7 @@ function updatePairsUI(schedule) {
     });
 }
 
+// подсветка кабинетов, в которых есть пары
 function highlightRoomsForSchedule(schedule) {
     resetActiveSelection();
     highlightedMeshes = [];
@@ -293,6 +309,43 @@ function highlightRoomsForSchedule(schedule) {
     });
 }
 
+// подсветка конкретного кабинета по его номеру (например, при клике на карточку пары)
+function highlightRoomByRoomId(roomId) {
+    resetActiveSelection();
+
+    const mesh = roomMeshes.find((m) => m.userData.roomNumber === roomId);
+    if (!mesh || !mesh.userData.showPanel) {
+        hideRoomPanel();
+        clickInfoDiv.textContent = 'Клик: объект без информации';
+        return;
+    }
+
+    if (highlightedMeshes.includes(mesh)) {
+        const status = mesh.userData.pairStatus;
+        if (status && status !== 'past') {
+            animateMeshColor(mesh, getStatusColor(status, 'bright'));
+            activeHighlightedMesh = mesh;
+        }
+    } else {
+        animateMeshColor(mesh, COLOR_SELECTED);
+        selectedMesh = mesh;
+    }
+
+    clickInfoDiv.textContent = `Клик: ${mesh.userData.roomName}`;
+    showRoomPanel(mesh.userData.roomNumber || '', mesh.userData.roomName);
+}
+
+// обработчик клика по карточке пары
+pairsContainer.addEventListener('click', (event) => {
+    const card = event.target.closest('.pair-card');
+    if (!card) return;
+    const roomId = card.dataset.roomId;
+    if (roomId) {
+        highlightRoomByRoomId(roomId);
+    }
+});
+
+// применение выбранной группы: загрузка и отображение расписания
 async function applyGroup(selectedGroup) {
     currentGroup = selectedGroup;
     const schedule = await fetchSchedule(selectedGroup, currentDate);
@@ -301,6 +354,7 @@ async function applyGroup(selectedGroup) {
     highlightRoomsForSchedule(schedule);
 }
 
+// обновление интерфейса при смене даты
 function refreshForDateChange() {
     if (currentGroup) {
         applyGroup(currentGroup);
@@ -312,7 +366,7 @@ function refreshForDateChange() {
     }
 }
 
-// ===== ЦВЕТА И АНИМАЦИЯ =====
+// палитра цветов и параметры анимации
 const COLOR_WHITE = 0xffffff;
 const COLOR_SELECTED = 0xd8d3c4;
 const ANIMATION_DURATION = 350;
@@ -323,12 +377,15 @@ const statusColors = {
     upcoming: { normal: 0xf3e7ce, bright: 0xe9d3a0 }
 };
 
+// хранилище активных анимаций для возможности отмены
 const activeAnimations = new Map();
 
+// получение текущего цвета меша
 function getMeshColor(mesh) {
     return Array.isArray(mesh.material) ? mesh.material[0].color.getHex() : mesh.material.color.getHex();
 }
 
+// мгновенная установка цвета
 function setMeshColorInstant(mesh, hexColor) {
     if (!mesh.material) return;
     if (Array.isArray(mesh.material)) {
@@ -339,6 +396,7 @@ function setMeshColorInstant(mesh, hexColor) {
     mesh.material.needsUpdate = true;
 }
 
+// плавная анимация изменения цвета
 function animateMeshColor(mesh, targetHex, duration = ANIMATION_DURATION) {
     if (!mesh.material) return;
     if (activeAnimations.has(mesh)) {
@@ -361,6 +419,7 @@ function animateMeshColor(mesh, targetHex, duration = ANIMATION_DURATION) {
     activeAnimations.set(mesh, requestAnimationFrame(step));
 }
 
+// сброс всех кабинетов к белому цвету
 function resetAllRoomsToWhite(instant = true) {
     roomMeshes.forEach((mesh) => {
         if (mesh.userData.showPanel) {
@@ -370,12 +429,13 @@ function resetAllRoomsToWhite(instant = true) {
     });
 }
 
+// получение цвета в зависимости от статуса пары
 function getStatusColor(status, variant = 'normal') {
     if (status === 'past') return COLOR_WHITE;
     return statusColors[status]?.[variant] ?? COLOR_WHITE;
 }
 
-// ===== КЛИКИ =====
+// сброс активной подсветки (выбранного или активного кабинета)
 function resetActiveSelection() {
     if (activeHighlightedMesh) {
         const status = activeHighlightedMesh.userData.pairStatus;
@@ -388,6 +448,7 @@ function resetActiveSelection() {
     }
 }
 
+// обработка клика по 3d-сцене
 function handleClick(event) {
     const clientX = event.clientX ?? event.touches?.[0]?.clientX;
     const clientY = event.clientY ?? event.touches?.[0]?.clientY;
@@ -427,6 +488,7 @@ function handleClick(event) {
     }
 }
 
+// регистрация событий pointer и touch для различения клика и перетаскивания
 renderer.domElement.addEventListener('pointerdown', (event) => {
     isPointerDown = true;
     pointerDownPos.set(event.clientX, event.clientY);
@@ -455,7 +517,7 @@ renderer.domElement.addEventListener('touchend', (event) => {
     }
 });
 
-// ===== ПАНЕЛЬ КАБИНЕТА =====
+// функции работы с панелью кабинета
 function showRoomPanel(roomNumber, roomName) {
     roomPanelTitle.textContent = `${roomName}${roomNumber ? ` (${roomNumber})` : ''}`;
     roomPanelContent.innerHTML = '';
@@ -482,6 +544,7 @@ function hideRoomPanel() {
     roomPanel.classList.remove('visible');
 }
 
+// обработчики закрытия панели кабинета
 roomPanelClose.addEventListener('click', () => {
     resetActiveSelection();
     hideRoomPanel();
@@ -501,7 +564,7 @@ document.addEventListener('pointerdown', (event) => {
     hideRoomPanel();
 });
 
-// ===== САЙДБАР =====
+// управление сайдбаром
 function setSidebarOpen(open) {
     sidebar.classList.toggle('open', open);
     sidebar.setAttribute('aria-hidden', String(!open));
@@ -519,9 +582,7 @@ applyGroupBtn.addEventListener('click', async () => {
     resetActiveSelection();
 });
 
-// ===== ДАТА =====
-// input[type="date"] уже отдаёт значение в формате ISO (yyyy-mm-dd),
-// поэтому дополнительный парсинг/форматирование не требуется.
+// обработчики смены даты
 dateInput.addEventListener('change', () => {
     if (!dateInput.value) {
         dateInput.value = currentDate;
@@ -547,7 +608,7 @@ nextDayBtn.addEventListener('click', () => {
     refreshForDateChange();
 });
 
-// ===== ВЫБОР ЭТАЖА =====
+// переключение этажей
 function setFloor(floor) {
     currentFloor = floor;
 
@@ -584,30 +645,29 @@ floorNumbers.forEach((span) => {
 
 setFloor(currentFloor);
 
-// ===== КНОПКА "ПОДРОБНЕЕ" =====
+// переход на страницу недельного расписания
 weekDetailsBtn.addEventListener('click', () => {
     const params = new URLSearchParams({ group: currentGroup || '', floor: currentFloor });
     window.location.href = `${WEEK_SCHEDULE_PAGE_URL}?${params.toString()}`;
 });
 
-// ===== АНИМАЦИЯ =====
+// основной цикл анимации
 function animate() {
     requestAnimationFrame(animate);
     controls.update();
     renderer.render(scene, camera);
 }
 
-// ===== RESIZE =====
+// обработка изменения размеров контейнера
 const resizeObserver = new ResizeObserver(() => {
     renderer.setSize(container.clientWidth, container.clientHeight);
     controls?.handleResize();
 });
 resizeObserver.observe(container);
 
-
-// ===== СВАЙП ДЛЯ ОТКРЫТИЯ САЙДБАРА (мобильные) =====
-const SWIPE_EDGE_THRESHOLD = 24;   // ширина зоны от левого края
-const SWIPE_MIN_DISTANCE = 60;     // минимальное расстояние свайпа
+// свайп от левого края для открытия сайдбара на мобильных
+const SWIPE_EDGE_THRESHOLD = 24;
+const SWIPE_MIN_DISTANCE = 60;
 let swipeStartX = null;
 let swipeStartY = null;
 let isSwipeGesture = false;
@@ -616,7 +676,6 @@ document.addEventListener('touchstart', (event) => {
     if (event.touches.length !== 1) return;
 
     const touch = event.touches[0];
-    // Начало свайпа только у левого края
     if (touch.clientX <= SWIPE_EDGE_THRESHOLD) {
         swipeStartX = touch.clientX;
         swipeStartY = touch.clientY;
@@ -635,28 +694,24 @@ document.addEventListener('touchmove', (event) => {
     const deltaX = touch.clientX - swipeStartX;
     const deltaY = touch.clientY - swipeStartY;
 
-    // Если движение явно горизонтальное вправо и достаточно длинное
     if (deltaX > SWIPE_MIN_DISTANCE && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
-        // Открываем сайдбар
         if (!sidebar.classList.contains('open')) {
             setSidebarOpen(true);
         }
-        // Сбрасываем жест, чтобы не срабатывал повторно
         isSwipeGesture = false;
         swipeStartX = null;
         swipeStartY = null;
-        // Предотвращаем дальнейшую прокрутку/действия браузера
         event.preventDefault();
     }
 }, { passive: false });
 
 document.addEventListener('touchend', () => {
-    // Очистка состояния после окончания касания
     isSwipeGesture = false;
     swipeStartX = null;
     swipeStartY = null;
 });
 
+// закрытие сайдбара кнопкой-крестиком (показывается на мобильных)
 document.getElementById('sidebar-close').addEventListener('click', () => {
     setSidebarOpen(false);
 });
