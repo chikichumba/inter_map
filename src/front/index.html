@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Навигатор по этажам</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Кнопка открытия сайдбара -->
+    <button id="sidebar-toggle" aria-label="Открыть настройки" aria-expanded="false" aria-controls="sidebar">☰</button>
+
+    <!-- Сайдбар выбора группы -->
+    <aside id="sidebar" aria-hidden="true">
+        <h3>Настройки</h3>
+        <label for="group-select">Группа</label>
+        <select id="group-select">
+            <option value="Группа 1">Группа 1</option>
+            <option value="Группа 2">Группа 2</option>
+            <option value="Группа 3">Группа 3</option>
+            <option value="Группа 4">Группа 4</option>
+            <option value="Группа 5">Группа 5</option>
+            <option value="Группа 6">Группа 6</option>
+        </select>
+        <button id="apply-group" type="button">Применить</button>
+    </aside>
+
+    <!-- Обёртка: основной контент -->
+    <div id="app-wrapper">
+        <div id="main-container">
+            <!-- Панель выбора даты -->
+            <div id="date-panel">
+                <button class="nav-btn" id="prev-day" type="button" aria-label="Предыдущий день">←</button>
+                <input type="date" id="date-input" aria-label="Дата">
+                <button class="nav-btn" id="next-day" type="button" aria-label="Следующий день">→</button>
+                <button class="details-btn" id="week-details-btn" type="button">Подробнее</button>
+            </div>
+
+            <!-- Ряд: карта этажа (модель + пары) и блок выбора этажа -->
+            <div id="content-row">
+                <div id="map-column">
+                    <!-- Контейнер 3D-модели -->
+                    <div id="model-container">
+                        <div id="model-loading">
+                            <div class="spinner" role="status" aria-label="Загрузка модели"></div>
+                            <p>Загружаем план этажа…</p>
+                        </div>
+                        <div id="status-legend">
+                            <span class="legend-item"><span class="dot current"></span>Идёт сейчас</span>
+                            <span class="legend-item"><span class="dot upcoming"></span>Предстоит</span>
+                            <span class="legend-item"><span class="dot past"></span>Прошло</span>
+                        </div>
+                        <div id="click-info">Кликните по объекту</div>
+                        <!-- Заглушка для этажей, кроме 2-го -->
+                        <div id="stub-overlay"><span>В разработке</span></div>
+                    </div>
+
+                    <!-- Нижняя панель с парами, по ширине совпадает с моделью -->
+                    <div id="pairs-container">
+                        <div class="no-pairs">Выберите группу, чтобы увидеть пары</div>
+                    </div>
+                </div>
+
+                <!-- Блок выбора этажа: только цифры, по высоте совпадает с картой -->
+                <nav id="floor-selector" aria-label="Выбор этажа">
+                    <div class="floor-numbers">
+                        <span data-floor="2" role="button" tabindex="0">2</span>
+                        <span data-floor="3" role="button" tabindex="0">3</span>
+                        <span data-floor="4" role="button" tabindex="0">4</span>
+                        <span data-floor="5" role="button" tabindex="0">5</span>
+                        <span data-floor="6" role="button" tabindex="0">6</span>
+                    </div>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- Всплывающая панель кабинета -->
+    <div id="room-panel" role="dialog" aria-labelledby="room-panel-title" aria-modal="false">
+        <button class="close-btn" id="room-panel-close" type="button" aria-label="Закрыть">&times;</button>
+        <h2 id="room-panel-title">Кабинет</h2>
+        <div id="room-panel-content"></div>
+    </div>
+
+    <!-- Импорт Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module" src="app.js"></script>
+</body>
+</html>
