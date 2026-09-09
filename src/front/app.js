@@ -11,7 +11,7 @@ const INITIAL_ZOOM_MOBILE = 1.5;
 const INITIAL_ZOOM = isMobile ? INITIAL_ZOOM_MOBILE : INITIAL_ZOOM_DESKTOP;
 
 // ===== КОНФИГУРАЦИЯ МОДЕЛИ =====
-const GLB_URL = 'glbs/2ndfloor.glb';
+const GLB_URL = './glbs/2ndfloor.glb';
 const DIAGONAL_MARGIN = 2.0;
 const FRUSTUM_MARGIN = 1.0;
 const FIXED_AZIMUTH = 0;
