@@ -603,3 +603,56 @@ const resizeObserver = new ResizeObserver(() => {
     controls?.handleResize();
 });
 resizeObserver.observe(container);
+
+
+// ===== СВАЙП ДЛЯ ОТКРЫТИЯ САЙДБАРА (мобильные) =====
+const SWIPE_EDGE_THRESHOLD = 24;   // ширина зоны от левого края
+const SWIPE_MIN_DISTANCE = 60;     // минимальное расстояние свайпа
+let swipeStartX = null;
+let swipeStartY = null;
+let isSwipeGesture = false;
+
+document.addEventListener('touchstart', (event) => {
+    if (event.touches.length !== 1) return;
+
+    const touch = event.touches[0];
+    // Начало свайпа только у левого края
+    if (touch.clientX <= SWIPE_EDGE_THRESHOLD) {
+        swipeStartX = touch.clientX;
+        swipeStartY = touch.clientY;
+        isSwipeGesture = true;
+    } else {
+        swipeStartX = null;
+        swipeStartY = null;
+        isSwipeGesture = false;
+    }
+}, { passive: true });
+
+document.addEventListener('touchmove', (event) => {
+    if (!isSwipeGesture || swipeStartX === null || swipeStartY === null) return;
+
+    const touch = event.touches[0];
+    const deltaX = touch.clientX - swipeStartX;
+    const deltaY = touch.clientY - swipeStartY;
+
+    // Если движение явно горизонтальное вправо и достаточно длинное
+    if (deltaX > SWIPE_MIN_DISTANCE && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+        // Открываем сайдбар
+        if (!sidebar.classList.contains('open')) {
+            setSidebarOpen(true);
+        }
+        // Сбрасываем жест, чтобы не срабатывал повторно
+        isSwipeGesture = false;
+        swipeStartX = null;
+        swipeStartY = null;
+        // Предотвращаем дальнейшую прокрутку/действия браузера
+        event.preventDefault();
+    }
+}, { passive: false });
+
+document.addEventListener('touchend', () => {
+    // Очистка состояния после окончания касания
+    isSwipeGesture = false;
+    swipeStartX = null;
+    swipeStartY = null;
+});

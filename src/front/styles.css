@@ -538,57 +538,64 @@ canvas {
 }
 
 /* =========================================
-   АДАПТИВНЫЕ СТИЛИ (исправленные)
+   АДАПТИВНЫЕ СТИЛИ
    ========================================= */
 @media (max-width: 768px) {
-    body {
-        overflow: hidden;               /* фиксированная высота */
-        align-items: center;
+        body {
+        overflow-y: auto;          /* разрешаем прокрутку */
+        height: auto;              /* снимаем фиксацию высоты */
+        align-items: flex-start;   /* контент начинается сверху */
     }
 
     #app-wrapper {
-        height: 100vh;
+        height: auto;
+        min-height: 100vh;
         padding: var(--space-2);
+        padding-top: 56px;         /* отступ сверху, чтобы кнопка не перекрывала контент */
     }
 
     #main-container {
         max-width: 100%;
-        height: 100%;
+        height: auto;
         gap: var(--space-2);
     }
 
-    /* Панель даты – сверху */
-    #date-panel {
-        flex-shrink: 0;
-        padding: var(--space-1) 0;
-    }
-
-    /* Контент (карта + пары + этажи) – колонка */
     #content-row {
-        flex: 1;
+        flex: none;
         display: flex;
         flex-direction: column;
         gap: var(--space-2);
         min-height: 0;
     }
 
-    /* Карта и пары занимают основное место */
     #map-column {
-        order: 1;
-        flex: 1;
-        min-height: 0;
+        flex: none;
         display: flex;
         flex-direction: column;
         gap: var(--space-2);
     }
 
-    /* Переключатель этажей – ВНИЗУ, горизонтальный */
+    /* Карта получает фиксированную высоту — остальное прокручивается */
+    #model-container {
+        flex: none;
+        height: 60vh;
+        min-height: 260px;
+        max-height: 70vh;
+    }
+
+    /* Пары больше не ограничены по высоте */
+    #pairs-container {
+        flex: none;
+        max-height: none;
+        height: auto;
+    }
+
+    /* Этажи — горизонтальный блок внизу */
     #floor-selector {
         order: 2;
         width: 100%;
         height: auto;
         flex-direction: row;
-        align-items: center;
         justify-content: center;
         padding: var(--space-2);
         border-radius: var(--radius-m);
@@ -651,6 +658,11 @@ canvas {
         width: 240px;
         left: -260px;
     }
+
+    #sidebar-toggle {
+        display: none;   /* скрываем кнопку */
+    }
+    
     #sidebar.open {
         left: 0;
     }
@@ -659,7 +671,7 @@ canvas {
 /* Узкие экраны (телефоны) */
 @media (max-width: 480px) {
     #app-wrapper {
-        padding: var(--space-1);
+        padding-top: 48px;
     }
 
     #date-panel {
@@ -693,7 +705,8 @@ canvas {
     }
 
     #model-container {
-        min-height: 150px;
+        height: 55vh;
+        min-height: 200px;
     }
 
     #pairs-container {
@@ -718,24 +731,25 @@ canvas {
 
 /* Очень низкие экраны (ландшафтная ориентация) */
 @media (max-height: 500px) and (orientation: landscape) {
+        body {
+        overflow-y: auto;
+        height: auto;
+    }
+
     #app-wrapper {
-        padding: var(--space-1);
-    }
-
-    #date-panel {
-        padding: 0;
-    }
-
-    #content-row {
-        gap: var(--space-1);
+        height: auto;
+        min-height: 100vh;
+        padding-top: 48px;
     }
 
     #model-container {
-        min-height: 120px;
+        height: 70vh;
+        min-height: 200px;
     }
 
     #pairs-container {
-        max-height: 20vh;
+        max-height: none;
+        height: auto;
     }
 
     #floor-selector {
