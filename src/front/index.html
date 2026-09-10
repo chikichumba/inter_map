@@ -73,7 +73,9 @@
 
         <!-- две кнопки внизу панели, вплотную друг к другу -->
         <div class="sidebar-footer">
-            <!-- показ панели расписания: чистый CSS (чекбокс + :has), JS не нужен -->
+            <!-- Кнопка расписания. Под ней спрятан чекбокс: он отмечен —
+                 шторка открыта, снят — закрыта. Открытие заодно применяет
+                 выбранную выше группу, поэтому жать «Применить» не обязательно. -->
             <div class="sidebar-action">
                 <input type="checkbox" id="schedule-toggle" class="schedule-toggle-input">
                 <label for="schedule-toggle" class="sidebar-action-btn">
@@ -129,8 +131,9 @@
                 </nav>
             </div>
 
-            <!-- нижняя полоса: занимает место, которое на телефоне
-                 оставалось пустым под выбором этажа -->
+            <!-- Нижняя полоса. На телефоне под выбором этажа оставалось
+                 пустое место — теперь там кнопка возврата камеры.
+                 На широком экране полоса скрыта: там пустоты нет. -->
             <div id="map-footer">
                 <button id="reset-view" class="map-footer-btn" type="button">
                     <span class="map-footer-btn-icon" aria-hidden="true">⤢</span>Сбросить вид
@@ -143,6 +146,7 @@
          #pairs-container тот же самый — его наполняет app.js при смене группы
          и даты, поэтому содержимое панели зависит от текущего выбора -->
     <div id="schedule-panel" role="region" aria-labelledby="schedule-panel-title">
+        <!-- серая полоска-ручка: подсказывает, что шторку можно тянуть пальцем -->
         <span class="schedule-panel-grip" aria-hidden="true"></span>
         <div class="schedule-panel-head">
             <h2 id="schedule-panel-title">Расписание</h2>

@@ -420,7 +420,8 @@ canvas {
     cursor: pointer;
 }
 
-/* Пока открыта шторка расписания, карта не принимает ни клики, ни жесты:
+/* Пока открыта шторка расписания, карта не принимает ни клики, ни жесты.
+   pointer-events: none означает «элемент не ловит мышь и касания»:
    OrbitControls слушает канвас, а pointer-events до него не доходят.
    Так перетаскивание внутри панели не крутит модель под ней. */
 :root:has(#schedule-toggle:checked) #model-container {
@@ -987,8 +988,9 @@ canvas {
 /* лента пар */
 /* был горизонтальный скроллер под картой — теперь вертикальный
    список внутри #schedule-panel */
-/* Сетка: на широкой шторке пары ложатся в 2-3 колонки,
-   на телефоне сами схлопываются в одну. */
+/* Список пар. Сетка auto-fill сама решает, сколько колонок поместится:
+   на широкой шторке выходит 2-3, на телефоне одна. Ничего настраивать
+   под каждый размер экрана не нужно. */
 #pairs-container {
     flex: 1 1 auto;
     width: 100%;
@@ -1131,7 +1133,12 @@ canvas {
    #pairs-container внутри — тот же самый узел, который наполняет app.js
    в updatePairsUI(), поэтому содержимое всегда соответствует выбранной
    группе и дате. */
-/* Шторка снизу на всех экранах. На десктопе центрируется в области
+/* ПАНЕЛЬ РАСПИСАНИЯ.
+   Открывается кнопкой в сайдбаре или свайпом снизу вверх (см. app.js).
+   Показывается через :has() — если чекбокс #schedule-toggle отмечен,
+   правило ниже меняет display с none на flex.
+
+   Шторка снизу на всех экранах. На десктопе центрируется в области
    справа от сайдбара (left/right + margin: auto), на телефоне занимает
    всю ширину. Верхние 72px экрана не перекрываются никогда — там живёт
    кнопка вызова сайдбара. */
@@ -1234,6 +1241,35 @@ canvas {
 #room-panel.visible {
     display: block;
     animation: panel-in var(--duration-base) var(--ease);
+}
+
+/* Когда открыто расписание, карточка кабинета не ложится на него сверху,
+   а поднимается НАД шторкой. Высоту шторки в --sheet-height пишет app.js,
+   поэтому карточка всегда стоит ровно на её краю. */
+:root:has(#schedule-toggle:checked) #room-panel {
+    top: auto;
+    bottom: calc(var(--sheet-height, 0px) + var(--space-2));
+    transform: none;
+    max-height: calc(100dvh - var(--sheet-height, 0px) - var(--sheet-top-gap) - var(--space-5));
+}
+
+/* выезд снизу вместо появления сбоку — иначе анимация конфликтует
+   с transform: none у правила выше */
+:root:has(#schedule-toggle:checked) #room-panel.visible {
+    animation: panel-in-sheet var(--duration-base) var(--ease);
+}
+
+/* выезд панели снизу — используется и на телефоне, и когда карточка
+   кабинета встаёт над открытым расписанием */
+@keyframes panel-in-sheet {
+    from {
+        opacity: 0;
+        transform: translateY(24px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 @keyframes panel-in {
@@ -1438,17 +1474,6 @@ canvas {
 
     #room-panel.visible {
         animation: panel-in-sheet var(--duration-base) var(--ease);
-    }
-
-    @keyframes panel-in-sheet {
-        from {
-            opacity: 0;
-            transform: translateY(24px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
     }
 
     /* сайдбар — выезжающая шторка */

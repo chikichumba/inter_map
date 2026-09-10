@@ -355,6 +355,9 @@ async function applyGroup(selectedGroup) {
     currentSchedule = schedule;
     updatePairsUI(schedule);
     highlightRoomsForSchedule(schedule);
+    // список пар изменился — шторка стала выше или ниже,
+    // пересчитываем её высоту для карточки кабинета
+    updateSheetHeight();
 }
 
 // обновление интерфейса при смене даты
@@ -728,25 +731,58 @@ if (stubVideo) {
 }
 
 // ---------------------------------------------------------------------------
-// шторка расписания: свайп снизу вверх открывает, свайп вниз закрывает
+// ШТОРКА РАСПИСАНИЯ
+//
+// Открыта она или нет — хранит скрытый чекбокс #schedule-toggle в сайдбаре.
+// Css смотрит на него сам (правило :has в styles.css), поэтому здесь мы
+// только переключаем галочку, а показом занимаются стили.
+//
+// Открыть можно тремя способами: кнопкой в сайдбаре, свайпом снизу вверх
+// и программно. Закрыть — кнопкой, свайпом вниз, кликом мимо панели
+// или клавишей Escape.
 // ---------------------------------------------------------------------------
 const scheduleToggle = document.getElementById('schedule-toggle');
 const schedulePanel = document.getElementById('schedule-panel');
 
-// зона у нижнего края экрана, откуда начинается жест открытия
+// Полоса у нижнего края экрана, с которой начинается жест открытия (в пикселях).
 const SHEET_EDGE_THRESHOLD = 32;
+// Насколько далеко нужно провести пальцем, чтобы это посчиталось свайпом,
+// а не случайным касанием.
 const SHEET_MIN_DISTANCE = 60;
 
 let sheetStartX = null;
 let sheetStartY = null;
 let sheetFromBottomEdge = false;
 
+// Открывая расписание, сразу подтягиваем выбранную в списке группу.
+// Благодаря этому на телефоне достаточно одного нажатия: выбрал группу —
+// нажал «Показать расписание». Отдельное «Применить» больше не нужно,
+// но продолжает работать как раньше.
+function applySelectedGroupIfNeeded() {
+    const selectedGroup = groupSelect.value;
+    if (selectedGroup && selectedGroup !== currentGroup) {
+        applyGroup(selectedGroup);
+    }
+}
+
+// Записываем высоту шторки в css-переменную --sheet-height.
+// Она нужна карточке кабинета: та встаёт ровно над расписанием,
+// а не поверх него. Когда шторка закрыта, высота равна нулю.
+function updateSheetHeight() {
+    const height = scheduleToggle.checked ? schedulePanel.getBoundingClientRect().height : 0;
+    document.documentElement.style.setProperty('--sheet-height', `${Math.round(height)}px`);
+}
+
+// Единая точка открытия и закрытия шторки: и свайп, и кнопка,
+// и клик мимо панели проходят через неё.
 function setScheduleOpen(open) {
     if (scheduleToggle.checked === open) return;
     scheduleToggle.checked = open;
+    if (open) applySelectedGroupIfNeeded();
     // карта перестаёт реагировать на жесты, пока шторка открыта:
     // за визуальную часть отвечает css, за three.js — controls
     controls.enabled = !open;
+    updateSheetHeight();
 }
 
 document.addEventListener('touchstart', (event) => {
@@ -764,6 +800,7 @@ document.addEventListener('touchmove', (event) => {
     if (sheetStartY === null || event.touches.length !== 1) return;
 
     const touch = event.touches[0];
+    // deltaY меньше нуля — палец идёт вверх, больше нуля — вниз
     const deltaY = touch.clientY - sheetStartY;
     const deltaX = touch.clientX - sheetStartX;
 
@@ -796,10 +833,17 @@ document.addEventListener('pointerdown', (event) => {
     setScheduleOpen(false);
 });
 
-// кнопка в сайдбаре меняет чекбокс напрямую — синхронизируем управление картой
+// Кнопка «Показать расписание» — это label чекбокса, она меняет его сама,
+// минуя setScheduleOpen. Поэтому повторяем здесь те же три действия.
 scheduleToggle.addEventListener('change', () => {
+    if (scheduleToggle.checked) applySelectedGroupIfNeeded();
     controls.enabled = !scheduleToggle.checked;
+    updateSheetHeight();
 });
+
+// Высота шторки меняется, когда в неё приходит другое число пар,
+// — следим и обновляем переменную.
+new ResizeObserver(updateSheetHeight).observe(schedulePanel);
 
 // escape закрывает шторку
 document.addEventListener('keydown', (event) => {
@@ -807,7 +851,8 @@ document.addEventListener('keydown', (event) => {
 });
 
 // ---------------------------------------------------------------------------
-// кнопка «Сбросить вид»: возвращает камеру в исходное положение
+// кнопка «Сбросить вид»: возвращает камеру в исходное положение,
+// если пользователь увёл карту зумом или перетаскиванием
 // ---------------------------------------------------------------------------
 document.getElementById('reset-view').addEventListener('click', () => {
     if (loadedModel) fitCameraToModel(loadedModel);
