@@ -526,6 +526,20 @@ canvas {
 
 #stub-overlay.visible { display: flex; }
 
+/* видео-заглушка: вписывается в контейнер целиком, не обрезаясь.
+   Кликов не ловит — заглушка и так перекрывает карту.
+   Автовоспроизведение стартует в момент, когда app.js ставит .visible:
+   пока у заглушки display: none, браузер видео не проигрывает. */
+.stub-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: var(--model-stub-bg);
+    pointer-events: none;
+}
+
 #stub-overlay span {
     font-size: 18px;
     font-weight: 500;
@@ -1633,5 +1647,10 @@ canvas {
     .pair-card:hover,
     .pair-card:active {
         transform: none;
+    }
+
+    /* зацикленное видео — тоже движение: прячем, заглушка остаётся пустой */
+    .stub-video {
+        display: none;
     }
 }

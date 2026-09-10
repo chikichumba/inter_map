@@ -108,8 +108,9 @@
                             <span class="legend-item"><span class="dot past"></span>Прошло</span>
                         </div>
                         <div id="click-info" role="status" aria-live="polite">Кликните по объекту</div>
-                        <!-- заглушка для этажей, кроме второго -->
-                        <div id="stub-overlay" role="status" aria-live="polite"><span>В разработке</span></div>
+                        <div id="stub-overlay" role="status" aria-live="polite">
+                            <video class="stub-video" src="videos/stub-floor.mp4" autoplay muted loop playsinline preload="auto" aria-hidden="true"></video>
+                        </div>
                     </div>
                     <!-- лента пар переехала в #schedule-panel: карта занимает
                          всю высоту колонки, расписание открывается кнопкой -->

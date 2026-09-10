@@ -714,3 +714,12 @@ document.addEventListener('touchend', () => {
 document.getElementById('sidebar-close').addEventListener('click', () => {
     setSidebarOpen(false);
 });
+
+// важнейшая функция // 
+const stubVideo = document.querySelector('.stub-video');
+if (stubVideo) {
+    stubOverlay.addEventListener('click', () => {
+        stubVideo.muted = !stubVideo.muted;
+        if (stubVideo.paused) stubVideo.play();
+    });
+}
