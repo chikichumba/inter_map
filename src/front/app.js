@@ -710,6 +710,13 @@ document.addEventListener('touchend', () => {
     swipeStartY = null;
 });
 
+// Нажатие по затемнению позади шторки закрывает её — привычное
+// поведение мобильных панелей. На десктопе затемнения не видно
+// и нажатий оно не ловит, поэтому обработчик там не срабатывает.
+document.getElementById('sidebar-scrim').addEventListener('click', () => {
+    setSidebarOpen(false);
+});
+
 // закрытие сайдбара кнопкой-крестиком (показывается на мобильных)
 document.getElementById('sidebar-close').addEventListener('click', () => {
     setSidebarOpen(false);

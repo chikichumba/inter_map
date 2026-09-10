@@ -60,6 +60,15 @@
     --duration-fast: 0.15s;
     --duration-base: 0.25s;
     --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+    /* Кривая и длительности выезда сайдбара. Открывается чуть медленнее
+       и с «замедлением к концу» — так шторка кажется тяжёлой и живой;
+       закрывается быстрее, чтобы не мешать. Такая же кривая используется
+       в мобильных шторках iOS и Android. */
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    --duration-drawer-in: 0.36s;
+    --duration-drawer-out: 0.22s;
+    /* затемнение позади открытой шторки */
+    --scrim: rgba(18, 20, 24, 0.44);
 
     /* геометрия закреплённого сайдбара и контентной колонки */
     --sidebar-width: 260px;
@@ -181,6 +190,7 @@
     --danger: #E85C5C;
     --danger-hover: #F07070;
     --on-danger: #1B0F0E;
+    --scrim: rgba(0, 0, 0, 0.6);
     /* статусные цвета приглушены под темный фон */
     --status-past: #ff0000;
     --status-past-bg: #34302D;
@@ -726,6 +736,20 @@ canvas {
 }
 
 
+/* Затемнение позади шторки. Всегда лежит в разметке, но по умолчанию
+   прозрачное и не ловит нажатия, поэтому карте не мешает. Показывается
+   только на узких экранах — на десктопе сайдбар карту не перекрывает
+   и затемнять нечего (правило в блоке max-width: 768px). */
+#sidebar-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 14;
+    background: var(--scrim);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--duration-drawer-out) var(--ease-drawer);
+}
+
 /* сам сайдбар — закреплён в левом верхнем углу, открыт по умолчанию. */
 #sidebar {
     position: fixed;
@@ -745,15 +769,15 @@ canvas {
     display: flex;
     flex-direction: column;
     gap: var(--space-5);
-    transition: transform var(--duration-base) var(--ease);
+    transition: transform var(--duration-drawer-in) var(--ease-drawer);
 }
 
 /* закрытое состояние: уезжает влево и перестаёт ловить фокус */
 #sidebar[aria-hidden="true"] {
     transform: translateX(calc(-100% - var(--sidebar-inset) - 4px));
     visibility: hidden;
-    transition: transform var(--duration-base) var(--ease),
-                visibility 0s linear var(--duration-base);
+    transition: transform var(--duration-drawer-out) var(--ease-drawer),
+                visibility 0s linear var(--duration-drawer-out);
 }
 
 /* класс .open ставит app.js вместе с aria-hidden="false" —
@@ -762,7 +786,7 @@ canvas {
     left: var(--sidebar-inset);
     transform: translateX(0);
     visibility: visible;
-    transition: transform var(--duration-base) var(--ease),
+    transition: transform var(--duration-drawer-in) var(--ease-drawer),
                 visibility 0s;
 }
 
@@ -770,6 +794,32 @@ canvas {
 @media (min-width: 769px) {
     :root:has(#sidebar:not([aria-hidden="true"])) #sidebar-toggle {
         display: none;
+    }
+}
+
+/* Содержимое въезжает следом за самой шторкой, по очереди сверху вниз.
+   Каждый следующий блок стартует на 40 мс позже — движение читается как
+   одно, а не как рывок всей панели. Работает только при открытии
+   (класс .open), поэтому на десктопе при первой загрузке ничего не мигает. */
+#sidebar.open > * {
+    animation: sidebar-item-in var(--duration-base) var(--ease-drawer) both;
+}
+
+#sidebar.open > *:nth-child(1) { animation-delay: 0.06s; }
+#sidebar.open > *:nth-child(2) { animation-delay: 0.10s; }
+#sidebar.open > *:nth-child(3) { animation-delay: 0.14s; }
+#sidebar.open > *:nth-child(4) { animation-delay: 0.18s; }
+#sidebar.open > *:nth-child(5) { animation-delay: 0.22s; }
+#sidebar.open > *:nth-child(6) { animation-delay: 0.26s; }
+
+@keyframes sidebar-item-in {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
     }
 }
 
@@ -1521,8 +1571,10 @@ canvas {
         transform: translateX(-100%);
         /* скрыт не только визуально: закрытая шторка не ловит фокус */
         visibility: hidden;
-        transition: transform var(--duration-base) var(--ease),
-                    visibility 0s linear var(--duration-base);
+        /* закрытие быстрее открытия — так интерфейс кажется отзывчивее */
+        transition: transform var(--duration-drawer-out) var(--ease-drawer),
+                    box-shadow var(--duration-drawer-out) linear,
+                    visibility 0s linear var(--duration-drawer-out);
     }
 
     #sidebar.open {
@@ -1530,8 +1582,16 @@ canvas {
         transform: translateX(0);
         visibility: visible;
         box-shadow: var(--shadow-panel);
-        transition: transform var(--duration-base) var(--ease),
+        transition: transform var(--duration-drawer-in) var(--ease-drawer),
+                    box-shadow var(--duration-drawer-in) linear,
                     visibility 0s;
+    }
+
+    /* затемнение включается вместе со шторкой */
+    :root:has(#sidebar.open) #sidebar-scrim {
+        opacity: 1;
+        pointer-events: auto;
+        transition: opacity var(--duration-drawer-in) var(--ease-drawer);
     }
 }
 
