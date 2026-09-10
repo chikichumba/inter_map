@@ -69,7 +69,6 @@ const clickInfoDiv = document.getElementById('click-info');
 const sidebarToggle = document.getElementById('sidebar-toggle');
 const sidebar = document.getElementById('sidebar');
 const groupSelect = document.getElementById('group-select');
-const applyGroupBtn = document.getElementById('apply-group');
 const pairsContainer = document.getElementById('pairs-container');
 const roomPanel = document.getElementById('room-panel');
 const roomPanelClose = document.getElementById('room-panel-close');
@@ -579,13 +578,8 @@ function setSidebarOpen(open) {
 
 sidebarToggle.addEventListener('click', () => setSidebarOpen(!sidebar.classList.contains('open')));
 
-applyGroupBtn.addEventListener('click', async () => {
-    const selectedGroup = groupSelect.value;
-    if (!selectedGroup) return;
-    await applyGroup(selectedGroup);
-    hideRoomPanel();
-    resetActiveSelection();
-});
+// Кнопки «Применить» больше нет: группу применяет открытие расписания,
+// см. applySelectedGroupIfNeeded ниже.
 
 // обработчики смены даты
 dateInput.addEventListener('change', () => {
@@ -762,6 +756,18 @@ function applySelectedGroupIfNeeded() {
     const selectedGroup = groupSelect.value;
     if (selectedGroup && selectedGroup !== currentGroup) {
         applyGroup(selectedGroup);
+        // группа сменилась — карточка старого кабинета уже неактуальна
+        hideRoomPanel();
+    }
+}
+
+// На телефоне сайдбар выезжает поверх карты. Если оставить его открытым,
+// нажатие на пару подсветит кабинет, но самого кабинета видно не будет —
+// поэтому вместе с расписанием закрываем сайдбар. На широком экране он
+// карту не перекрывает, там закрывать нечего.
+function closeSidebarOnNarrowScreen() {
+    if (window.matchMedia('(max-width: 768px)').matches) {
+        setSidebarOpen(false);
     }
 }
 
@@ -778,7 +784,10 @@ function updateSheetHeight() {
 function setScheduleOpen(open) {
     if (scheduleToggle.checked === open) return;
     scheduleToggle.checked = open;
-    if (open) applySelectedGroupIfNeeded();
+    if (open) {
+        applySelectedGroupIfNeeded();
+        closeSidebarOnNarrowScreen();
+    }
     // карта перестаёт реагировать на жесты, пока шторка открыта:
     // за визуальную часть отвечает css, за three.js — controls
     controls.enabled = !open;
@@ -836,7 +845,10 @@ document.addEventListener('pointerdown', (event) => {
 // Кнопка «Показать расписание» — это label чекбокса, она меняет его сама,
 // минуя setScheduleOpen. Поэтому повторяем здесь те же три действия.
 scheduleToggle.addEventListener('change', () => {
-    if (scheduleToggle.checked) applySelectedGroupIfNeeded();
+    if (scheduleToggle.checked) {
+        applySelectedGroupIfNeeded();
+        closeSidebarOnNarrowScreen();
+    }
     controls.enabled = !scheduleToggle.checked;
     updateSheetHeight();
 });
