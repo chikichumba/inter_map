@@ -57,7 +57,7 @@ let currentSchedule = [];
 let highlightedMeshes = [];
 let selectedMesh = null;
 let activeHighlightedMesh = null;
-let currentDate = new Date().toISOString().slice(0, 10);
+let currentDate = getDateString(new Date());
 let currentFloor = 2;
 // ссылка на загруженную модель — нужна кнопке «Сбросить вид»
 let loadedModel = null;
@@ -238,9 +238,24 @@ function fitCameraToModel(model) {
     controls.update();
 }
 
-// вспомогательная функция получения строки даты в формате iso
+// Дата в виде «2026-09-11».
+//
+// Раньше здесь был toISOString(), который переводит время в UTC. Из-за
+// этого ночью в Москве (UTC+3) приложение открывалось на вчерашнем дне,
+// а вечером в западных поясах — на завтрашнем. Берём локальные значения.
 function getDateString(date) {
-    return date.toISOString().slice(0, 10);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+// Разбор строки «2026-09-11» в дату по местному времени.
+// new Date('2026-09-11') понимает строку как UTC-полночь и в западных
+// поясах сдвигает день назад — поэтому собираем дату по частям.
+function parseDateString(value) {
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, month - 1, day);
 }
 
 // запрос расписания с сервера (или фолбэк при ошибке)
@@ -286,6 +301,10 @@ function updatePairsUI(schedule) {
         const card = document.createElement('div');
         card.className = `pair-card ${getPairStatus(pair)}`;
         card.dataset.roomId = pair.roomId;
+        // карточка ведёт себя как кнопка: попадает в обход по Tab
+        // и озвучивается скринридером как нажимаемая
+        card.tabIndex = 0;
+        card.setAttribute('role', 'button');
         card.innerHTML = `
             <div class="pair-time">${pair.time}</div>
             <div class="pair-name">${pair.name}</div>
@@ -338,6 +357,15 @@ function highlightRoomByRoomId(roomId) {
     showRoomPanel(mesh.userData.roomNumber || '', mesh.userData.roomName);
 }
 
+// Enter и пробел на карточке работают как нажатие мышью.
+pairsContainer.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const card = event.target.closest('.pair-card');
+    if (!card) return;
+    event.preventDefault();
+    card.click();
+});
+
 // обработчик клика по карточке пары
 pairsContainer.addEventListener('click', (event) => {
     const card = event.target.closest('.pair-card');
@@ -355,9 +383,6 @@ async function applyGroup(selectedGroup) {
     currentSchedule = schedule;
     updatePairsUI(schedule);
     highlightRoomsForSchedule(schedule);
-    // список пар изменился — шторка стала выше или ниже,
-    // пересчитываем её высоту для карточки кабинета
-    updateSheetHeight();
 }
 
 // обновление интерфейса при смене даты
@@ -565,6 +590,9 @@ document.addEventListener('keydown', (event) => {
 document.addEventListener('pointerdown', (event) => {
     if (!roomPanel.classList.contains('visible')) return;
     if (roomPanel.contains(event.target) || renderer.domElement.contains(event.target)) return;
+    // кнопки «Подробнее» и «Скрыть» лежат поверх карты, но к карточке
+    // кабинета отношения не имеют — по ним она закрываться не должна
+    if (event.target.closest('.legend-btn')) return;
     resetActiveSelection();
     hideRoomPanel();
 });
@@ -592,7 +620,7 @@ dateInput.addEventListener('change', () => {
 });
 
 prevDayBtn.addEventListener('click', () => {
-    const date = new Date(currentDate);
+    const date = parseDateString(currentDate);
     date.setDate(date.getDate() - 1);
     currentDate = getDateString(date);
     dateInput.value = currentDate;
@@ -600,7 +628,7 @@ prevDayBtn.addEventListener('click', () => {
 });
 
 nextDayBtn.addEventListener('click', () => {
-    const date = new Date(currentDate);
+    const date = parseDateString(currentDate);
     date.setDate(date.getDate() + 1);
     currentDate = getDateString(date);
     dateInput.value = currentDate;
@@ -657,10 +685,26 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-// обработка изменения размеров контейнера
+// Обработка изменения размеров контейнера.
+//
+// Раньше здесь вызывался controls.handleResize() — такого метода у
+// OrbitControls нет, и обработчик падал с ошибкой на каждом ресайзе.
+// Из-за этого же не пересчитывались границы видимой области камеры:
+// ортокамера, в отличие от перспективной, не выводит их из размера
+// холста сама, и модель растягивалась при смене размера окна.
+// Высоту области оставляем прежней, а ширину заново считаем из пропорций.
 const resizeObserver = new ResizeObserver(() => {
-    renderer.setSize(container.clientWidth, container.clientHeight);
-    controls?.handleResize();
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    if (!width || !height) return;
+
+    renderer.setSize(width, height);
+
+    const frustumHeight = camera.top - camera.bottom;
+    const aspect = width / height;
+    camera.left = -frustumHeight * aspect / 2;
+    camera.right = frustumHeight * aspect / 2;
+    camera.updateProjectionMatrix();
 });
 resizeObserver.observe(container);
 
@@ -778,14 +822,6 @@ function closeSidebarOnNarrowScreen() {
     }
 }
 
-// Записываем высоту шторки в css-переменную --sheet-height.
-// Она нужна карточке кабинета: та встаёт ровно над расписанием,
-// а не поверх него. Когда шторка закрыта, высота равна нулю.
-function updateSheetHeight() {
-    const height = scheduleToggle.checked ? schedulePanel.getBoundingClientRect().height : 0;
-    document.documentElement.style.setProperty('--sheet-height', `${Math.round(height)}px`);
-}
-
 // Единая точка открытия и закрытия шторки: и свайп, и кнопка,
 // и клик мимо панели проходят через неё.
 function setScheduleOpen(open) {
@@ -798,7 +834,6 @@ function setScheduleOpen(open) {
     // карта перестаёт реагировать на жесты, пока шторка открыта:
     // за визуальную часть отвечает css, за three.js — controls
     controls.enabled = !open;
-    updateSheetHeight();
 }
 
 document.addEventListener('touchstart', (event) => {
@@ -857,12 +892,7 @@ scheduleToggle.addEventListener('change', () => {
         closeSidebarOnNarrowScreen();
     }
     controls.enabled = !scheduleToggle.checked;
-    updateSheetHeight();
 });
-
-// Высота шторки меняется, когда в неё приходит другое число пар,
-// — следим и обновляем переменную.
-new ResizeObserver(updateSheetHeight).observe(schedulePanel);
 
 // escape закрывает шторку
 document.addEventListener('keydown', (event) => {
@@ -885,6 +915,10 @@ pairsContainer.addEventListener('click', (event) => {
     if (!event.target.closest('.pair-card')) return;
     if (!scheduleToggle.checked) return;
     if (!window.matchMedia('(max-width: 768px)').matches) return;
+    // Кабинета может не оказаться на плане этажа — тогда карточка не
+    // открылась, и сворачивать расписание не за чем: иначе пользователь
+    // терял список и не получал ничего взамен.
+    if (!roomPanel.classList.contains('visible')) return;
 
     scheduleCollapsedForRoom = true;
     roomPanel.classList.add('can-return');   // css покажет кнопку «Назад»
