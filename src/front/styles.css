@@ -61,6 +61,9 @@
     --sidebar-inset: var(--space-4);
     --content-max: 1100px;
     --floor-column-width: 48px;
+    /* верхняя зона, которую шторка расписания не перекрывает:
+       кнопка ☰ (46px) + отступы */
+    --sheet-top-gap: 76px;
 
     /* Правый отступ панели кабинета: считается так, чтобы её правый край
        остановился на 12px левее колонки этажей. #main-container центрирован
@@ -415,6 +418,13 @@ canvas {
 
 #model-container canvas {
     cursor: pointer;
+}
+
+/* Пока открыта шторка расписания, карта не принимает ни клики, ни жесты:
+   OrbitControls слушает канвас, а pointer-events до него не доходят.
+   Так перетаскивание внутри панели не крутит модель под ней. */
+:root:has(#schedule-toggle:checked) #model-container {
+    pointer-events: none;
 }
 
 #model-container canvas:active {
@@ -977,17 +987,21 @@ canvas {
 /* лента пар */
 /* был горизонтальный скроллер под картой — теперь вертикальный
    список внутри #schedule-panel */
+/* Сетка: на широкой шторке пары ложатся в 2-3 колонки,
+   на телефоне сами схлопываются в одну. */
 #pairs-container {
     flex: 1 1 auto;
     width: 100%;
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    align-content: start;
     overflow-x: hidden;
     overflow-y: auto;
     gap: var(--space-2);
     padding: var(--space-1) 0;
     box-sizing: border-box;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
 }
 
 /* карточки пар создаёт app.js как дивку без tabindex, клики
@@ -995,14 +1009,13 @@ canvas {
    этого не чинит. Минимальное вмешательство: в updatePairsUI добавить
    card.tabIndex = 0 (стиль фокуса для них уже описан ниже). */
 .pair-card {
-    flex: 0 0 auto;
-    width: 100%;
+    width: auto;
     max-width: none;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-left: 2px solid var(--border);
-    border-radius: var(--radius-s);
-    padding: 8px 10px;
+    border-left: 3px solid var(--border);
+    border-radius: var(--radius-m);
+    padding: 10px 12px;
     font-size: 12px;
     color: var(--ink);
     cursor: pointer;
@@ -1023,12 +1036,40 @@ canvas {
     outline-offset: 2px;
 }
 
-.pair-time { font-weight: 600; font-size: 11px; }
-.pair-name { font-size: 12px; margin: 2px 0; font-weight: 500; }
-.pair-room { font-size: 11px; color: var(--ink-secondary); }
-.pair-teacher { font-size: 11px; color: var(--ink-tertiary); }
+.pair-time {
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    color: var(--ink-secondary);
+}
+
+.pair-name {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+    margin: 4px 0 6px;
+}
+
+/* номер кабинета — компактной таблеткой, чтобы цеплялся взглядом */
+.pair-room {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--ink);
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.pair-teacher {
+    font-size: 11px;
+    color: var(--ink-tertiary);
+    margin-top: 6px;
+}
 
 .no-pairs {
+    grid-column: 1 / -1;
     width: 100%;
     text-align: center;
     color: var(--ink-tertiary);
@@ -1040,6 +1081,48 @@ canvas {
 .pair-card.current { border-left-color: var(--status-current); background: var(--status-current-bg); }
 .pair-card.upcoming { border-left-color: var(--status-upcoming); }
 
+/* Полоса под картой. На десктопе не нужна — там свободного места нет,
+   поэтому показывается только на узких экранах. */
+#map-footer {
+    display: none;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    padding-top: var(--space-1);
+}
+
+.map-footer-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: 40px;
+    padding: 0 var(--space-5);
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    box-shadow: var(--shadow);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background var(--duration-fast) ease,
+                border-color var(--duration-fast) ease,
+                transform var(--duration-fast) var(--ease);
+}
+
+.map-footer-btn:active {
+    transform: scale(0.97);
+    background: var(--surface-active);
+}
+
+.map-footer-btn-icon {
+    font-size: 15px;
+    line-height: 1;
+    color: var(--ink-secondary);
+}
+
 /* панель расписания.
    Открывается кнопкой в сайдбаре, стоит слева — вплотную к сайдбару, на
    противоположной стороне от панели кабинета, поэтому две панели не спорят
@@ -1048,22 +1131,41 @@ canvas {
    #pairs-container внутри — тот же самый узел, который наполняет app.js
    в updatePairsUI(), поэтому содержимое всегда соответствует выбранной
    группе и дате. */
+/* Шторка снизу на всех экранах. На десктопе центрируется в области
+   справа от сайдбара (left/right + margin: auto), на телефоне занимает
+   всю ширину. Верхние 72px экрана не перекрываются никогда — там живёт
+   кнопка вызова сайдбара. */
 #schedule-panel {
     position: fixed;
-    top: var(--sidebar-inset);
+    top: auto;
+    bottom: 0;
     left: calc(var(--sidebar-width) + var(--sidebar-inset) * 2);
-    width: 300px;
-    max-width: calc(100vw - var(--sidebar-width) - var(--sidebar-inset) * 3);
-    max-height: calc(100% - var(--sidebar-inset) * 2);
+    right: var(--space-4);
+    margin: 0 auto;
+    width: auto;
+    max-width: 760px;
+    max-height: calc(100dvh - var(--sheet-top-gap));
     display: none;
     flex-direction: column;
     gap: var(--space-2);
-    padding: var(--space-4);
+    padding: var(--space-2) var(--space-4) var(--space-4);
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius-m);
+    border-bottom: none;
+    border-radius: var(--radius-l) var(--radius-l) 0 0;
     box-shadow: var(--shadow-panel);
     z-index: 24;
+}
+
+/* ручка захвата: подсказывает, что шторку можно тянуть */
+.schedule-panel-grip {
+    flex-shrink: 0;
+    align-self: center;
+    width: 40px;
+    height: 4px;
+    margin-bottom: var(--space-1);
+    border-radius: 999px;
+    background: var(--border-strong);
 }
 
 :root:has(#schedule-toggle:checked) #schedule-panel {
@@ -1072,8 +1174,8 @@ canvas {
 }
 
 @keyframes schedule-in {
-    from { opacity: 0; transform: translateX(-12px); }
-    to   { opacity: 1; transform: translateX(0); }
+    from { opacity: 0; transform: translateY(28px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 .schedule-panel-head {
@@ -1214,15 +1316,17 @@ canvas {
 
 /* адаптивные стили для планшетов и ниже */
 @media (max-width: 768px) {
+    /* экран целиком, без прокрутки страницы: карта тянется на всю
+       свободную высоту, выбор этажа и футер прижаты к низу */
     body {
-        overflow-y: auto;
-        height: auto;
-        align-items: flex-start;
+        overflow: hidden;
+        height: 100dvh;
+        align-items: stretch;
     }
 
     #app-wrapper {
-        height: auto;
-        min-height: 100vh;
+        height: 100%;
+        min-height: 0;
         padding: var(--space-2);
         /* место под кнопку-гамбургер (46px + отступ сверху) */
         padding-top: 62px;
@@ -1230,12 +1334,12 @@ canvas {
 
     #main-container {
         max-width: 100%;
-        height: auto;
+        height: 100%;
         gap: var(--space-2);
     }
 
     #content-row {
-        flex: none;
+        flex: 1 1 auto;
         display: flex;
         flex-direction: column;
         gap: var(--space-2);
@@ -1243,40 +1347,35 @@ canvas {
     }
 
     #map-column {
-        flex: none;
+        flex: 1 1 auto;
         display: flex;
         flex-direction: column;
         gap: var(--space-2);
+        min-height: 0;
     }
 
     #model-container {
-        flex: none;
-        height: 60vh;
-        min-height: 260px;
-        max-height: 70vh;
+        flex: 1 1 auto;
+        height: auto;
+        min-height: 180px;
+        max-height: none;
     }
 
-    /* панель расписания — нижний лист, как и панель кабинета */
+    #map-footer {
+        display: flex;
+    }
+
+    /* пока шторка сайдбара открыта, карта под ней не реагирует на жесты */
+    :root:has(#sidebar.open) #model-container {
+        pointer-events: none;
+    }
+
+    /* шторка во всю ширину экрана */
     #schedule-panel {
-        top: auto;
         left: 0;
         right: 0;
-        bottom: 0;
-        width: auto;
         max-width: none;
-        max-height: 70vh;
-        border-radius: var(--radius-l) var(--radius-l) 0 0;
-        border-bottom: none;
-        padding: var(--space-4) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
-    }
-
-    :root:has(#schedule-toggle:checked) #schedule-panel {
-        animation: schedule-in-sheet var(--duration-base) var(--ease);
-    }
-
-    @keyframes schedule-in-sheet {
-        from { opacity: 0; transform: translateY(24px); }
-        to   { opacity: 1; transform: translateY(0); }
+        padding: var(--space-2) var(--space-3) calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
     }
 
     #pairs-container {
@@ -1480,16 +1579,11 @@ canvas {
         min-height: 200px;
     }
 
+    /* низкий экран: шторка остаётся снизу, но верхняя свободная зона
+       меньше — иначе на неё не остаётся высоты */
     #schedule-panel {
-        top: var(--space-2);
-        left: var(--space-2);
-        right: auto;
-        bottom: auto;
-        width: 280px;
-        max-width: calc(100vw - var(--space-5));
-        max-height: calc(100% - var(--space-4));
-        border-radius: var(--radius-m);
-        padding: var(--space-3);
+        --sheet-top-gap: 56px;
+        padding: var(--space-1) var(--space-3) var(--space-3);
     }
 
     #pairs-container {

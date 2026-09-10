@@ -59,6 +59,8 @@ let selectedMesh = null;
 let activeHighlightedMesh = null;
 let currentDate = new Date().toISOString().slice(0, 10);
 let currentFloor = 2;
+// ссылка на загруженную модель — нужна кнопке «Сбросить вид»
+let loadedModel = null;
 
 // ссылки на dom-элементы
 const container = document.getElementById('model-container');
@@ -139,6 +141,7 @@ loader.load(
     GLB_URL,
     (gltf) => {
         const model = gltf.scene;
+        loadedModel = model;
         scene.add(model);
 
         // собираем все меши в массив
@@ -723,3 +726,89 @@ if (stubVideo) {
         if (stubVideo.paused) stubVideo.play();
     });
 }
+
+// ---------------------------------------------------------------------------
+// шторка расписания: свайп снизу вверх открывает, свайп вниз закрывает
+// ---------------------------------------------------------------------------
+const scheduleToggle = document.getElementById('schedule-toggle');
+const schedulePanel = document.getElementById('schedule-panel');
+
+// зона у нижнего края экрана, откуда начинается жест открытия
+const SHEET_EDGE_THRESHOLD = 32;
+const SHEET_MIN_DISTANCE = 60;
+
+let sheetStartX = null;
+let sheetStartY = null;
+let sheetFromBottomEdge = false;
+
+function setScheduleOpen(open) {
+    if (scheduleToggle.checked === open) return;
+    scheduleToggle.checked = open;
+    // карта перестаёт реагировать на жесты, пока шторка открыта:
+    // за визуальную часть отвечает css, за three.js — controls
+    controls.enabled = !open;
+}
+
+document.addEventListener('touchstart', (event) => {
+    if (event.touches.length !== 1) {
+        sheetStartY = null;
+        return;
+    }
+    const touch = event.touches[0];
+    sheetStartX = touch.clientX;
+    sheetStartY = touch.clientY;
+    sheetFromBottomEdge = touch.clientY >= window.innerHeight - SHEET_EDGE_THRESHOLD;
+}, { passive: true });
+
+document.addEventListener('touchmove', (event) => {
+    if (sheetStartY === null || event.touches.length !== 1) return;
+
+    const touch = event.touches[0];
+    const deltaY = touch.clientY - sheetStartY;
+    const deltaX = touch.clientX - sheetStartX;
+
+    // жест должен быть достаточно длинным и заметно вертикальным
+    if (Math.abs(deltaY) < SHEET_MIN_DISTANCE || Math.abs(deltaY) < Math.abs(deltaX) * 1.5) return;
+
+    if (deltaY < 0 && sheetFromBottomEdge && !scheduleToggle.checked) {
+        setScheduleOpen(true);
+        sheetStartY = null;
+    } else if (deltaY > 0 && scheduleToggle.checked && schedulePanel.contains(event.target)) {
+        // вниз закрываем только если список прокручен в самое начало,
+        // иначе жест принадлежит прокрутке списка пар
+        if (pairsContainer.scrollTop <= 0) {
+            setScheduleOpen(false);
+            sheetStartY = null;
+        }
+    }
+}, { passive: true });
+
+document.addEventListener('touchend', () => {
+    sheetStartY = null;
+    sheetFromBottomEdge = false;
+});
+
+// клик вне шторки закрывает её (кнопка в сайдбаре продолжает переключать сама)
+document.addEventListener('pointerdown', (event) => {
+    if (!scheduleToggle.checked) return;
+    if (schedulePanel.contains(event.target)) return;
+    if (event.target.closest('.sidebar-action')) return;
+    setScheduleOpen(false);
+});
+
+// кнопка в сайдбаре меняет чекбокс напрямую — синхронизируем управление картой
+scheduleToggle.addEventListener('change', () => {
+    controls.enabled = !scheduleToggle.checked;
+});
+
+// escape закрывает шторку
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && scheduleToggle.checked) setScheduleOpen(false);
+});
+
+// ---------------------------------------------------------------------------
+// кнопка «Сбросить вид»: возвращает камеру в исходное положение
+// ---------------------------------------------------------------------------
+document.getElementById('reset-view').addEventListener('click', () => {
+    if (loadedModel) fitCameraToModel(loadedModel);
+});

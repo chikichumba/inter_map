@@ -128,6 +128,14 @@
                     </div>
                 </nav>
             </div>
+
+            <!-- нижняя полоса: занимает место, которое на телефоне
+                 оставалось пустым под выбором этажа -->
+            <div id="map-footer">
+                <button id="reset-view" class="map-footer-btn" type="button">
+                    <span class="map-footer-btn-icon" aria-hidden="true">⤢</span>Сбросить вид
+                </button>
+            </div>
         </div>
     </div>
 
@@ -135,6 +143,7 @@
          #pairs-container тот же самый — его наполняет app.js при смене группы
          и даты, поэтому содержимое панели зависит от текущего выбора -->
     <div id="schedule-panel" role="region" aria-labelledby="schedule-panel-title">
+        <span class="schedule-panel-grip" aria-hidden="true"></span>
         <div class="schedule-panel-head">
             <h2 id="schedule-panel-title">Расписание</h2>
             <label for="schedule-toggle" class="schedule-panel-close" aria-label="Закрыть расписание">&times;</label>
