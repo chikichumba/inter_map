@@ -61,6 +61,9 @@ let currentDate = new Date().toISOString().slice(0, 10);
 let currentFloor = 2;
 // ссылка на загруженную модель — нужна кнопке «Сбросить вид»
 let loadedModel = null;
+// true, если расписание свернулось, чтобы показать кабинет.
+// По нему кнопка «Назад» понимает, что ей есть куда возвращаться.
+let scheduleCollapsedForRoom = false;
 
 // ссылки на dom-элементы
 const container = document.getElementById('model-container');
@@ -72,6 +75,7 @@ const groupSelect = document.getElementById('group-select');
 const pairsContainer = document.getElementById('pairs-container');
 const roomPanel = document.getElementById('room-panel');
 const roomPanelClose = document.getElementById('room-panel-close');
+const roomPanelBack = document.getElementById('room-panel-back');
 const roomPanelTitle = document.getElementById('room-panel-title');
 const roomPanelContent = document.getElementById('room-panel-content');
 const dateInput = document.getElementById('date-input');
@@ -547,6 +551,9 @@ function showRoomPanel(roomNumber, roomName) {
 
 function hideRoomPanel() {
     roomPanel.classList.remove('visible');
+    // карточку закрыли — кнопка «Назад» больше не нужна
+    roomPanel.classList.remove('can-return');
+    scheduleCollapsedForRoom = false;
 }
 
 // обработчики закрытия панели кабинета
@@ -860,6 +867,35 @@ new ResizeObserver(updateSheetHeight).observe(schedulePanel);
 // escape закрывает шторку
 document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && scheduleToggle.checked) setScheduleOpen(false);
+});
+
+// ---------------------------------------------------------------------------
+// ПЕРЕХОД «ПАРА → КАБИНЕТ → НАЗАД»
+//
+// На телефоне открытое расписание занимает пол-экрана, и карточка кабинета
+// вместе с ним почти не оставляет места карте. Поэтому при нажатии на пару
+// расписание сворачивается, а в карточке появляется кнопка «Назад»,
+// возвращающая его обратно. На широком экране места хватает, там ничего
+// не сворачивается и кнопка не показывается.
+// ---------------------------------------------------------------------------
+
+// Этот обработчик добавлен вторым: сначала срабатывает тот, что выше по файлу
+// и открывает карточку кабинета, и только потом сворачивается расписание.
+pairsContainer.addEventListener('click', (event) => {
+    if (!event.target.closest('.pair-card')) return;
+    if (!scheduleToggle.checked) return;
+    if (!window.matchMedia('(max-width: 768px)').matches) return;
+
+    scheduleCollapsedForRoom = true;
+    roomPanel.classList.add('can-return');   // css покажет кнопку «Назад»
+    setScheduleOpen(false);
+});
+
+// «Назад»: прячем карточку и возвращаем расписание на место
+roomPanelBack.addEventListener('click', () => {
+    const shouldReopen = scheduleCollapsedForRoom;
+    hideRoomPanel();
+    if (shouldReopen) setScheduleOpen(true);
 });
 
 // ---------------------------------------------------------------------------

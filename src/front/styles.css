@@ -1303,6 +1303,36 @@ canvas {
 }
 
 
+/* Кнопка «Назад к расписанию». Спрятана по умолчанию и появляется,
+   только когда app.js вешает на карточку класс can-return —
+   то есть когда расписание свернулось ради этой карточки. */
+.room-panel-back {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: var(--space-3);
+    padding: 7px 12px;
+    background: var(--accent-soft);
+    color: var(--ink);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background var(--duration-fast) ease,
+                border-color var(--duration-fast) ease;
+}
+
+#room-panel.can-return .room-panel-back {
+    display: inline-flex;
+}
+
+.room-panel-back-icon {
+    font-size: 13px;
+    line-height: 1;
+}
+
 #room-panel h2 {
     margin: 0 0 var(--space-3);
     font-size: 16px;
@@ -1667,6 +1697,11 @@ canvas {
    подсвеченной (а гамбургер — раскрытым) до следующего касания. Поэтому
    все они собраны здесь; :active и :focus-visible работают везде. */
 @media (hover: hover) and (pointer: fine) {
+    .room-panel-back:hover {
+        background: var(--surface-hover);
+        border-color: var(--border-strong);
+    }
+
     #date-panel input[type="date"]:hover {
         border-color: var(--border-strong);
         background: var(--surface-hover);

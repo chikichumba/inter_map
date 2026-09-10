@@ -160,6 +160,12 @@
     <!-- всплывающая панель кабинета -->
     <div id="room-panel" role="dialog" aria-labelledby="room-panel-title" aria-modal="false">
         <button class="close-btn" id="room-panel-close" type="button" aria-label="Закрыть">&times;</button>
+        <!-- Кнопка «Назад» появляется только тогда, когда карточку открыли
+             из расписания и оно ради неё свернулось. Возвращает расписание
+             обратно, чтобы можно было выбрать другую пару. -->
+        <button id="room-panel-back" class="room-panel-back" type="button">
+            <span class="room-panel-back-icon" aria-hidden="true">←</span>Назад к расписанию
+        </button>
         <h2 id="room-panel-title">Кабинет</h2>
         <div id="room-panel-content"></div>
     </div>
