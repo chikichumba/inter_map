@@ -69,6 +69,9 @@
     /* верхняя зона, которую шторка расписания не перекрывает:
        кнопка ☰ (46px) + отступы */
     --sheet-top-gap: 76px;
+    /* Высота верхней полосы на телефоне: под ней начинается контент
+       и от неё же отсчитывается карточка кабинета. */
+    --mobile-top-bar: 62px;
 
     /* Правый отступ панели кабинета: считается так, чтобы её правый край
        остановился на 12px левее колонки этажей. #main-container центрирован
@@ -451,14 +454,21 @@ canvas {
 }
 
 
+/* Легенда статусов. Стоит у правого края карты и выровнена по центру
+   по высоте: раньше она занимала верхний левый угол, а там теперь
+   появляется карточка кабинета. Пункты идут столбиком — так плашка
+   узкая и на телефоне почти не отъедает места. */
 #status-legend {
     position: absolute;
-    top: var(--space-3);
-    left: var(--space-3);
+    top: 50%;
+    right: var(--space-3);
+    left: auto;
+    transform: translateY(-50%);
     z-index: 4;
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-3);
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: var(--space-2);
     background: var(--model-chip-bg);
     padding: 5px 10px;
     border-radius: var(--radius-s);
@@ -1226,13 +1236,22 @@ canvas {
 
 
 /* всплывающая панель кабинета. */
+/* Карточка кабинета висит СВЕРХУ карты — на месте, где раньше была
+   легенда. Так она не закрывает ни выбор этажа, ни кнопку «Сбросить вид»
+   внизу экрана. Значения left/right повторяют границы карты: слева
+   сайдбар, справа колонка этажей, а margin: 0 auto центрирует карточку
+   между ними. */
 #room-panel {
     position: fixed;
-    right: max(var(--space-4), var(--room-panel-right));
-    top: 50%;
-    transform: translateY(-50%) translateX(0);
-    width: 300px;
-    max-height: 75vh;
+    top: calc(var(--sidebar-inset) + var(--space-3));
+    left: calc(var(--sidebar-width) + var(--sidebar-inset) * 2 + var(--space-3));
+    right: calc(var(--space-4) + var(--floor-column-width) + var(--space-3));
+    bottom: auto;
+    margin: 0 auto;
+    transform: none;
+    width: auto;
+    max-width: 340px;
+    max-height: min(46vh, 340px);
     overflow-y: auto;
     background: var(--surface);
     border-radius: var(--radius-m);
@@ -1248,43 +1267,15 @@ canvas {
     animation: panel-in var(--duration-base) var(--ease);
 }
 
-/* Когда открыто расписание, карточка кабинета не ложится на него сверху,
-   а поднимается НАД шторкой. Высоту шторки в --sheet-height пишет app.js,
-   поэтому карточка всегда стоит ровно на её краю. */
-:root:has(#schedule-toggle:checked) #room-panel {
-    top: auto;
-    bottom: calc(var(--sheet-height, 0px) + var(--space-2));
-    transform: none;
-    max-height: calc(100dvh - var(--sheet-height, 0px) - var(--sheet-top-gap) - var(--space-5));
-}
-
-/* выезд снизу вместо появления сбоку — иначе анимация конфликтует
-   с transform: none у правила выше */
-:root:has(#schedule-toggle:checked) #room-panel.visible {
-    animation: panel-in-sheet var(--duration-base) var(--ease);
-}
-
-/* выезд панели снизу — используется и на телефоне, и когда карточка
-   кабинета встаёт над открытым расписанием */
-@keyframes panel-in-sheet {
+/* карточка мягко съезжает сверху */
+@keyframes panel-in {
     from {
         opacity: 0;
-        transform: translateY(24px);
+        transform: translateY(-12px);
     }
     to {
         opacity: 1;
         transform: translateY(0);
-    }
-}
-
-@keyframes panel-in {
-    from {
-        opacity: 0;
-        transform: translateY(-50%) translateX(12px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(-50%) translateX(0);
     }
 }
 
@@ -1400,7 +1391,7 @@ canvas {
         min-height: 0;
         padding: var(--space-2);
         /* место под кнопку-гамбургер (46px + отступ сверху) */
-        padding-top: 62px;
+        padding-top: var(--mobile-top-bar);
     }
 
     #main-container {
@@ -1498,23 +1489,21 @@ canvas {
     }
 
     /* панель кабинета — нижний лист */
+    /* На телефоне карточка тоже сверху: сразу под кнопкой ☰,
+       во всю ширину экрана за вычетом полей. */
     #room-panel {
-        left: 0;
-        right: 0;
-        top: auto;
-        bottom: 0;
+        top: calc(var(--mobile-top-bar) + var(--space-2));
+        left: var(--space-3);
+        right: var(--space-3);
+        bottom: auto;
         width: auto;
+        max-width: none;
         transform: none;
-        max-height: 62vh;
+        max-height: 44dvh;
         overflow-y: auto;
-        border-radius: var(--radius-l) var(--radius-l) 0 0;
-        border-bottom: none;
+        border-radius: var(--radius-l);
         box-shadow: var(--shadow-panel);
-        padding: var(--space-4) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
-    }
-
-    #room-panel.visible {
-        animation: panel-in-sheet var(--duration-base) var(--ease);
+        padding: var(--space-3);
     }
 
     /* сайдбар — выезжающая шторка */
@@ -1549,7 +1538,7 @@ canvas {
 @media (max-width: 480px) {
     #app-wrapper {
         padding: var(--space-1);
-        padding-top: 62px;
+        padding-top: var(--mobile-top-bar);
     }
 
     /* панель даты живёт в сайдбаре (280px), ужимать её не нужно —
@@ -1620,11 +1609,16 @@ canvas {
         height: auto;
     }
 
+    /* на низком экране верхняя полоса ниже — кнопка ☰ прижата к краю */
+    :root {
+        --mobile-top-bar: 56px;
+    }
+
     #app-wrapper {
         height: auto;
         min-height: 100vh;
         padding: var(--space-1);
-        padding-top: 56px;
+        padding-top: var(--mobile-top-bar);
     }
 
     #sidebar-toggle {
@@ -1668,32 +1662,16 @@ canvas {
     }
 
     #room-panel {
-        left: auto;
-        right: max(var(--space-3), var(--room-panel-right));
-        top: 50%;
+        top: calc(var(--mobile-top-bar) + var(--space-1));
+        left: var(--space-2);
+        right: var(--space-2);
         bottom: auto;
-        width: 280px;
-        max-width: calc(100% - var(--space-5));
-        transform: translateY(-50%);
-        max-height: 88vh;
+        width: auto;
+        max-width: none;
+        transform: none;
+        max-height: calc(100dvh - var(--mobile-top-bar) - var(--space-4));
         border-radius: var(--radius-m);
-        border-bottom: 1px solid var(--border);
         padding: var(--space-3);
-    }
-
-    #room-panel.visible {
-        animation: panel-in-center var(--duration-base) var(--ease);
-    }
-
-    @keyframes panel-in-center {
-        from {
-            opacity: 0;
-            transform: translateY(-50%) scale(0.96);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(-50%) scale(1);
-        }
     }
 }
 
