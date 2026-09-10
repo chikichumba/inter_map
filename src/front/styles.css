@@ -93,7 +93,7 @@
        восстанавливается из тех же констант:
          правый край контента = (сайдбар + 2 отступа)/2 + 50vw + ширина/2
        Панель по-прежнему fixed и ничего не двигает — #model-container не
-       меняет размер (app.js не пересчитывает frustum ортокамеры). */
+       меняет размер (app.js не пересчитывает frustum ортокамеры). !!!VAJNO!!!*/
     --room-panel-right: calc(
         50vw
         - (var(--sidebar-width) + var(--sidebar-inset) * 2) / 2
@@ -382,12 +382,25 @@ a:focus-visible,
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: var(--space-3);
     gap: var(--space-2);
     background: var(--surface);
     padding: var(--space-3) var(--space-2);
     border-radius: var(--radius-m);
     border: 1px solid var(--border);
     flex-shrink: 0;
+}
+
+/* подпись над столбиком цифр; в 48px колонки помещается при 10px */
+.floor-selector-title {
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink-secondary);
+    user-select: none;
+    white-space: nowrap;
 }
 
 .floor-numbers {
@@ -600,6 +613,61 @@ canvas {
 }
 
 #sidebar-toggle:hover { background: var(--surface-hover); }
+
+/* кнопка «Показать расписание» — чекбокс + label, без JS.
+   Чекбокс лежит поверх кнопки и прозрачен: клик попадает в него,
+   фокус с клавиатуры тоже, а :has(#schedule-toggle:checked) открывает
+   #schedule-panel. */
+.sidebar-action {
+    position: relative;
+    display: flex;
+}
+
+.schedule-toggle-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+#sidebar .sidebar-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin: 0;
+    padding: 10px;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-s);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: 0;
+    text-transform: none;
+    cursor: pointer;
+    transition: background var(--duration-fast) ease,
+                border-color var(--duration-fast) ease;
+}
+
+#sidebar .sidebar-action-btn:hover {
+    background: var(--surface-hover);
+}
+
+/* пока панель открыта — кнопка подсвечена как активная */
+:root:has(#schedule-toggle:checked) #sidebar .sidebar-action-btn {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+}
+
+.schedule-toggle-input:focus-visible + .sidebar-action-btn {
+    outline: 1.5px solid var(--focus-ring);
+    outline-offset: 2px;
+}
 
 /* кнопка «Закрыть» — тот же #sidebar-close, который слушает app.js.
    Прижата к низу панели (margin-top: auto), тёмная заливка в белой теме
@@ -893,17 +961,18 @@ canvas {
 }
 
 /* лента пар */
+/* был горизонтальный скроллер под картой — теперь вертикальный
+   список внутри #schedule-panel */
 #pairs-container {
-    flex: 0 0 auto;
+    flex: 1 1 auto;
     width: 100%;
     display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: hidden;
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
     gap: var(--space-2);
     padding: var(--space-1) 0;
     box-sizing: border-box;
-    scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
 }
 
@@ -913,9 +982,8 @@ canvas {
    card.tabIndex = 0 (стиль фокуса для них уже описан ниже). */
 .pair-card {
     flex: 0 0 auto;
-    width: 200px;
-    max-width: 220px;
-    scroll-snap-align: start;
+    width: 100%;
+    max-width: none;
     background: var(--surface);
     border: 1px solid var(--border);
     border-left: 2px solid var(--border);
@@ -962,6 +1030,81 @@ canvas {
 .pair-card.past { border-left-color: var(--status-past); }
 .pair-card.current { border-left-color: var(--status-current); background: var(--status-current-bg); }
 .pair-card.upcoming { border-left-color: var(--status-upcoming); }
+
+/* панель расписания.
+   Открывается кнопкой в сайдбаре, стоит слева — вплотную к сайдбару, на
+   противоположной стороне от панели кабинета, поэтому две панели не спорят
+   друг с другом. Как и панель кабинета, это плавающий слой: раскладку она
+   не двигает и #model-container не ресайзит.
+   #pairs-container внутри — тот же самый узел, который наполняет app.js
+   в updatePairsUI(), поэтому содержимое всегда соответствует выбранной
+   группе и дате. */
+#schedule-panel {
+    position: fixed;
+    top: var(--sidebar-inset);
+    left: calc(var(--sidebar-width) + var(--sidebar-inset) * 2);
+    width: 300px;
+    max-width: calc(100vw - var(--sidebar-width) - var(--sidebar-inset) * 3);
+    max-height: calc(100% - var(--sidebar-inset) * 2);
+    display: none;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-4);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-m);
+    box-shadow: var(--shadow-panel);
+    z-index: 24;
+}
+
+:root:has(#schedule-toggle:checked) #schedule-panel {
+    display: flex;
+    animation: schedule-in var(--duration-base) var(--ease);
+}
+
+@keyframes schedule-in {
+    from { opacity: 0; transform: translateX(-12px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+.schedule-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+#schedule-panel h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.schedule-panel-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    font-size: 16px;
+    line-height: 1;
+    color: var(--ink-secondary);
+    cursor: pointer;
+    user-select: none;
+    transition: background var(--duration-fast) ease,
+                color var(--duration-fast) ease;
+}
+
+.schedule-panel-close:hover {
+    background: var(--surface-hover);
+    color: var(--ink);
+}
 
 /* всплывающая панель кабинета.
 
@@ -1133,8 +1276,31 @@ canvas {
         max-height: 70vh;
     }
 
+    /* панель расписания — нижний лист, как и панель кабинета */
+    #schedule-panel {
+        top: auto;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: auto;
+        max-width: none;
+        max-height: 70vh;
+        border-radius: var(--radius-l) var(--radius-l) 0 0;
+        border-bottom: none;
+        padding: var(--space-4) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+    }
+
+    :root:has(#schedule-toggle:checked) #schedule-panel {
+        animation: schedule-in-sheet var(--duration-base) var(--ease);
+    }
+
+    @keyframes schedule-in-sheet {
+        from { opacity: 0; transform: translateY(24px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
     #pairs-container {
-        flex: none;
+        flex: 1 1 auto;
         max-height: none;
         height: auto;
     }
@@ -1278,11 +1444,10 @@ canvas {
     }
 
     .pair-card {
-        width: 160px;
-        flex-basis: 160px;
-        max-width: 160px;
-        padding: 6px 8px;
-        font-size: 11px;
+        width: 100%;
+        max-width: none;
+        padding: 8px 10px;
+        font-size: 12px;
     }
 
     #room-panel {
@@ -1321,6 +1486,18 @@ canvas {
     #model-container {
         height: 70vh;
         min-height: 200px;
+    }
+
+    #schedule-panel {
+        top: var(--space-2);
+        left: var(--space-2);
+        right: auto;
+        bottom: auto;
+        width: 280px;
+        max-width: calc(100vw - var(--space-5));
+        max-height: calc(100% - var(--space-4));
+        border-radius: var(--radius-m);
+        padding: var(--space-3);
     }
 
     #pairs-container {
@@ -1412,5 +1589,9 @@ canvas {
                .view-switch-item, .is-active, .theme-switch,
                .theme-switch-input, .theme-switch-track, .theme-switch-thumb,
                .theme-switch-text, #theme-toggle, #date-panel-label,
-               .date-nav, .nav-btn-arrow
+               .date-nav, .nav-btn-arrow, .floor-selector-title,
+               .sidebar-action, .sidebar-action-btn, #schedule-toggle,
+               .schedule-toggle-input, #schedule-panel,
+               .schedule-panel-head, #schedule-panel-title,
+               .schedule-panel-close
    ========================================================================== */

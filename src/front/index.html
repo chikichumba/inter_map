@@ -66,6 +66,12 @@
             </label>
         </div>
 
+        <!-- показ панели расписания: чистый CSS (чекбокс + :has), JS не нужен -->
+        <div class="sidebar-action">
+            <input type="checkbox" id="schedule-toggle" class="schedule-toggle-input">
+            <label for="schedule-toggle" class="sidebar-action-btn">Показать расписание</label>
+        </div>
+
         <!-- кнопка закрытия сайдбара: тот же #sidebar-close, что слушает app.js -->
         <button id="sidebar-close" class="sidebar-close-btn" type="button" aria-label="Закрыть меню">Закрыть</button>
     </aside>
@@ -94,15 +100,13 @@
                         <!-- заглушка для этажей, кроме второго -->
                         <div id="stub-overlay" role="status" aria-live="polite"><span>В разработке</span></div>
                     </div>
-
-                    <!-- нижняя панель с парами -->
-                    <div id="pairs-container" role="region" aria-label="Пары на выбранную дату" aria-live="polite">
-                        <div class="no-pairs">Выберите группу, чтобы увидеть пары</div>
-                    </div>
+                    <!-- лента пар переехала в #schedule-panel: карта занимает
+                         всю высоту колонки, расписание открывается кнопкой -->
                 </div>
 
                 <!-- блок выбора этажа (вертикальные цифры) -->
                 <nav id="floor-selector" aria-label="Выбор этажа">
+                    <span class="floor-selector-title">Этаж</span>
                     <div class="floor-numbers">
                         <span data-floor="2" role="button" tabindex="0">2</span>
                         <span data-floor="3" role="button" tabindex="0">3</span>
@@ -112,6 +116,19 @@
                     </div>
                 </nav>
             </div>
+        </div>
+    </div>
+
+    <!-- панель расписания: открывается кнопкой «Показать расписание» в сайдбаре.
+         #pairs-container тот же самый — его наполняет app.js при смене группы
+         и даты, поэтому содержимое панели зависит от текущего выбора -->
+    <div id="schedule-panel" role="region" aria-labelledby="schedule-panel-title">
+        <div class="schedule-panel-head">
+            <h2 id="schedule-panel-title">Расписание</h2>
+            <label for="schedule-toggle" class="schedule-panel-close" aria-label="Закрыть расписание">&times;</label>
+        </div>
+        <div id="pairs-container" aria-live="polite">
+            <div class="no-pairs">Выберите группу, чтобы увидеть пары</div>
         </div>
     </div>
 

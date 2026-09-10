@@ -577,7 +577,6 @@ applyGroupBtn.addEventListener('click', async () => {
     const selectedGroup = groupSelect.value;
     if (!selectedGroup) return;
     await applyGroup(selectedGroup);
-    setSidebarOpen(false);
     hideRoomPanel();
     resetActiveSelection();
 });
