@@ -1,0 +1,1416 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+/* ==========================================================================
+   ТЕМЫ
+
+   Все цвета вынесены в переменные :root. Базовый набор = БЕЛАЯ тема, она же
+   тема по умолчанию. Переключение реализовано двумя совместимыми способами,
+   чтобы ничего не ломать:
+     1) :root[data-theme="white" | "dark" | "light"] — если позже понадобится
+        управлять темой из JS (одна строка: documentElement.dataset.theme);
+     2) :root:has(#theme-toggle:checked) — чистый CSS-переключатель в
+        сайдбаре, работает уже сейчас, без единой правки app.js.
+   Специфичность :has(#id) выше, чем у [data-theme], поэтому переключатель
+   всегда имеет приоритет над значением атрибута в разметке.
+
+   В тёмной теме сознательно нет чистого чёрного и чистого белого: фон —
+   мягкий сине-серый (#212429 / #2A2E34), текст — тёплый светло-серый
+   (#E4E2DE), акцент инвертируется в спокойный серый #D8D5D0 с тёмным
+   текстом на нём. Так контраст остаётся высоким, но глаз не режет.
+
+   КАРТА НЕ ЗАВИСИТ ОТ ТЕМЫ. Цвета 3D-сцены заданы в app.js хардкодом
+   (scene.background = 0xf5f2ea, COLOR_WHITE, COLOR_SELECTED, statusColors),
+   и это сохранено намеренно: --model-bg одинаков во всех темах, затемняющей
+   вуали над канвасом нет. Тема переключает только обвязку вокруг карты —
+   рамку, чипы легенды, подписи; сам план этажа выглядит одинаково.
+   ========================================================================== */
+
+:root {
+    color-scheme: light;
+
+    /* монохромная основа */
+    --bg: #FFFFFF;
+    --surface: #FFFFFF;
+    --ink: #1A1A1A;
+    --ink-secondary: #616161;
+    --ink-tertiary: #6E6E6E;
+    --border: #DDDDDD;
+    --accent: #2C2C2C;
+    --accent-hover: #1A1A1A;
+
+    /* приглушённые статусные цвета */
+    --status-past: #C4B5AC;
+    --status-past-bg: #F5F0EC;
+    --status-current: #A8C3B0;
+    --status-current-bg: #EDF3EE;
+    --status-upcoming: #D4C5A8;
+    --status-upcoming-bg: #F7F2E8;
+
+    /* добавленные токены (сводка — в конце файла) */
+    --surface-hover: #F1F1F1;
+    --surface-active: #E7E7E7;
+    --border-strong: #BFBFBF;
+    --accent-soft: #EFEFEF;
+    --on-accent: #FFFFFF;
+    --overlay-bg: rgba(255, 255, 255, 0.94);
+    --overlay-veil: rgba(255, 255, 255, 0.95);
+    --focus-ring: #1A1A1A;
+    /* фон сцены продублирован из app.js, чтобы фон канваса и фон
+       страницы не расходились при смене темы */
+    --model-bg: #F5F2EA;
+
+    --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+
+    --radius-s: 4px;
+    --radius-m: 6px;
+    --radius-l: 8px;
+
+    --shadow: 0 1px 3px rgba(0,0,0,0.04);
+    --shadow-card-hover: 0 6px 12px rgba(0,0,0,0.06);
+    --shadow-panel: 0 8px 28px rgba(0,0,0,0.10);
+
+    /* длительности анимаций одной точкой */
+    --duration-fast: 0.15s;
+    --duration-base: 0.25s;
+    --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+    /* геометрия закреплённого сайдбара и контентной колонки */
+    --sidebar-width: 260px;
+    --sidebar-inset: var(--space-4);
+    --content-max: 1100px;
+    --floor-column-width: 48px;
+
+    /* Правый отступ панели кабинета: считается так, чтобы её правый край
+       остановился на 12px левее колонки этажей. #main-container центрирован
+       в области справа от сайдбара, поэтому позиция колонки этажей
+       восстанавливается из тех же констант:
+         правый край контента = (сайдбар + 2 отступа)/2 + 50vw + ширина/2
+       Панель по-прежнему fixed и ничего не двигает — #model-container не
+       меняет размер (app.js не пересчитывает frustum ортокамеры). */
+    --room-panel-right: calc(
+        50vw
+        - (var(--sidebar-width) + var(--sidebar-inset) * 2) / 2
+        + var(--space-4) / 2
+        - min(
+            var(--content-max),
+            100vw - var(--sidebar-width) - var(--sidebar-inset) * 2 - var(--space-4)
+          ) / 2
+        + var(--floor-column-width) + var(--space-3)
+    );
+
+    /* Область карты одинакова в любой теме: чипы, заглушка и текст поверх
+       канваса не переопределяются в темах — см. комментарий вверху файла. */
+    --model-chip-bg: rgba(255, 255, 255, 0.92);
+    --model-chip-border: rgba(26, 26, 26, 0.12);
+    --model-ink: #55534E;
+    --model-stub-bg: rgba(245, 242, 234, 0.95);
+}
+
+/* белая тема — явное дублирование базовых значений,
+   чтобы атрибут можно было переставлять в обе стороны */
+:root[data-theme="white"] {
+    color-scheme: light;
+    --bg: #FFFFFF;
+    --surface: #FFFFFF;
+    --ink: #1A1A1A;
+    --ink-secondary: #616161;
+    --ink-tertiary: #6E6E6E;
+    --border: #DDDDDD;
+    --accent: #2C2C2C;
+    --accent-hover: #1A1A1A;
+    --surface-hover: #F1F1F1;
+    --surface-active: #E7E7E7;
+    --border-strong: #BFBFBF;
+    --accent-soft: #EFEFEF;
+    --on-accent: #FFFFFF;
+    --overlay-bg: rgba(255, 255, 255, 0.94);
+    --overlay-veil: rgba(255, 255, 255, 0.95);
+    --focus-ring: #1A1A1A;
+    --status-past-bg: #F4F1EF;
+    --status-current-bg: #ECF3EE;
+    --status-upcoming-bg: #F6F2E9;
+    --model-bg: #F5F2EA;
+}
+
+/* прежняя тёплая светлая тема — сохранена как третий вариант */
+:root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #FAFAF8;
+    --surface: #FFFFFF;
+    --ink: #1A1A1A;
+    --ink-secondary: #666666;
+    --ink-tertiary: #6F6F6B;
+    --border: #E5E5E0;
+    --accent: #2C2C2C;
+    --accent-hover: #1A1A1A;
+    --surface-hover: #F2F1EC;
+    --surface-active: #E9E8E2;
+    --border-strong: #C9C9C2;
+    --accent-soft: #EDEDE8;
+    --on-accent: #FFFFFF;
+    --overlay-bg: rgba(255, 255, 255, 0.92);
+    --overlay-veil: rgba(250, 250, 248, 0.95);
+    --focus-ring: #1A1A1A;
+    --model-bg: #F5F2EA;
+}
+
+/* тёмная тема: атрибутом data-theme="dark" или переключателем в сайдбаре.
+   Ни чистого чёрного, ни чистого белого — мягкие серые. */
+:root[data-theme="dark"],
+:root:has(#theme-toggle:checked) {
+    color-scheme: dark;
+    --bg: #212429;
+    --surface: #2A2E34;
+    --ink: #E4E2DE;
+    --ink-secondary: #B4B9C1;
+    --ink-tertiary: #969CA5;
+    --border: #3A3F47;
+    /* акцент инвертирован: спокойный светло-серый с тёмным текстом */
+    --accent: #D8D5D0;
+    --accent-hover: #EAE7E2;
+    --surface-hover: #333841;
+    --surface-active: #3C424B;
+    --border-strong: #525862;
+    --accent-soft: #31363E;
+    --on-accent: #1E2126;
+    --overlay-bg: rgba(42, 46, 52, 0.92);
+    --overlay-veil: rgba(33, 36, 41, 0.95);
+    --focus-ring: #C8CDD4;
+    /* статусные цвета приглушены под тёмный фон */
+    --status-past: #8C7F77;
+    --status-past-bg: #34302D;
+    --status-current: #7FA88C;
+    --status-current-bg: #2A332D;
+    --status-upcoming: #B39F76;
+    --status-upcoming-bg: #34302A;
+    --model-bg: #F5F2EA;
+    --shadow: 0 1px 3px rgba(0,0,0,0.35);
+    --shadow-card-hover: 0 6px 12px rgba(0,0,0,0.40);
+    --shadow-panel: 0 8px 28px rgba(0,0,0,0.50);
+}
+
+/* базовые стили */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: var(--bg);
+    font-family: var(--font-ui);
+    color: var(--ink);
+    overflow: hidden;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+}
+
+button {
+    font-family: inherit;
+}
+
+/* фокус для доступности — виден на всех интерактивных элементах */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+    outline: 1.5px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
+/* общий каркас.
+   Слева зарезервировано место под закреплённый сайдбар, поэтому карта
+   центрируется в оставшейся области и не уходит под панель. */
+#app-wrapper {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    align-items: stretch;
+    justify-content: center;
+    padding: var(--space-4);
+    padding-left: calc(var(--sidebar-width) + var(--sidebar-inset) * 2);
+}
+
+#main-container {
+    flex: 1;
+    max-width: var(--content-max);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    min-width: 0;
+}
+
+#content-row {
+    flex: 1;
+    display: flex;
+    align-items: stretch;
+    gap: var(--space-3);
+    min-height: 0;
+}
+
+#map-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    min-width: 0;
+}
+
+/* панель выбора даты — в сайдбаре, под переключателем «на день / на неделю».
+   Поле даты занимает всю ширину колонки (иначе нативный виджет обрезает
+   дату до одного числа), кнопки перелистывания — отдельной строкой под ним. */
+#date-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+    padding: 0;
+    flex-shrink: 0;
+}
+
+#date-panel input[type="date"] {
+    width: 100%;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-m);
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    background: var(--surface);
+    color: var(--ink);
+    text-align: center;
+    transition: border-color var(--duration-fast) ease,
+                background var(--duration-fast) ease;
+}
+
+#date-panel input[type="date"]:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-hover);
+}
+
+/* строка кнопок перелистывания под полем даты */
+.date-nav {
+    display: flex;
+    gap: var(--space-2);
+}
+
+/* стрелки дат внутри сайдбара не должны подхватывать заливку
+   от общего правила #sidebar button — возвращаем им вид nav-btn */
+#sidebar #date-panel .nav-btn {
+    flex: 1 1 0;
+    width: auto;
+    height: 32px;
+    gap: 4px;
+    padding: 0 6px;
+    background: var(--surface);
+    color: var(--ink-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-s);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+#sidebar #date-panel .nav-btn:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-strong);
+    color: var(--ink);
+}
+
+#sidebar #date-panel .nav-btn:active {
+    background: var(--surface-active);
+}
+
+.nav-btn-arrow {
+    font-size: 13px;
+    line-height: 1;
+}
+
+/* иконка календаря в тёмной теме — светлая (color-scheme её уже
+   переворачивает в Chrome, для Safari/старых сборок подстрахуемся) */
+:root[data-theme="dark"] #date-panel input[type="date"]::-webkit-calendar-picker-indicator,
+:root:has(#theme-toggle:checked) #date-panel input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(0.9);
+    cursor: pointer;
+}
+
+.nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-s);
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--ink-secondary);
+    transition: background var(--duration-fast) ease,
+                border-color var(--duration-fast) ease,
+                color var(--duration-fast) ease;
+}
+
+.nav-btn:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-strong);
+    color: var(--ink);
+}
+
+.nav-btn:active {
+    background: var(--surface-active);
+}
+
+/* блок выбора этажа */
+#floor-selector {
+    width: var(--floor-column-width);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    background: var(--surface);
+    padding: var(--space-3) var(--space-2);
+    border-radius: var(--radius-m);
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.floor-numbers {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.floor-numbers span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-secondary);
+    transition: background var(--duration-fast) ease,
+                color var(--duration-fast) ease;
+    user-select: none;
+}
+
+.floor-numbers span:hover {
+    background: var(--surface-hover);
+    color: var(--ink);
+}
+
+.floor-numbers span:active {
+    background: var(--surface-active);
+}
+
+/* активный этаж — заливка акцентом (класс .active ставит app.js) */
+.floor-numbers span.active {
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+.floor-numbers span.active:hover {
+    background: var(--accent-hover);
+    color: var(--on-accent);
+}
+
+/* контейнер модели */
+#model-container {
+    flex: 1 1 auto;
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-m);
+    background: var(--model-bg);
+    position: relative;
+    overflow: hidden;
+    touch-action: none;
+    min-height: 0;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* ОГРАНИЧЕНИЕ: кабинеты — меши внутри WebGL-канваса, DOM-узлов у них нет,
+   поэтому CSS не может дать им :hover поштучно. Курсор pointer выставлен на
+   весь канвас (кликабельные объекты занимают почти всю его площадь),
+   а состояние active (подсветка выбранного кабинета) уже реализовано в
+   app.js через animateMeshColor / COLOR_SELECTED. Настоящий per-room hover
+   потребует raycast на pointermove в app.js — сюда не лезем. */
+#model-container canvas {
+    cursor: pointer;
+}
+
+#model-container canvas:active {
+    cursor: grabbing;
+}
+
+
+/* информационные блоки поверх модели */
+#click-info {
+    position: absolute;
+    bottom: var(--space-3);
+    left: var(--space-3);
+    z-index: 4;
+    background: var(--model-chip-bg);
+    padding: 5px 10px;
+    border-radius: var(--radius-s);
+    pointer-events: none;
+    font-size: 12px;
+    color: var(--model-ink);
+    border: 1px solid var(--model-chip-border);
+    max-width: calc(100% - var(--space-5));
+}
+
+#status-legend {
+    position: absolute;
+    top: var(--space-3);
+    left: var(--space-3);
+    z-index: 4;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    background: var(--model-chip-bg);
+    padding: 5px 10px;
+    border-radius: var(--radius-s);
+    border: 1px solid var(--model-chip-border);
+    font-size: 11px;
+    color: var(--model-ink);
+    pointer-events: none;
+    max-width: calc(100% - var(--space-5));
+}
+
+#status-legend .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+#status-legend .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+#status-legend .dot.current { background: var(--status-current); }
+#status-legend .dot.upcoming { background: var(--status-upcoming); }
+#status-legend .dot.past { background: var(--status-past); }
+
+/* индикатор загрузки */
+#model-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    background: var(--model-bg);
+    z-index: 6;
+    transition: opacity 0.2s ease;
+}
+
+#model-loading.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.spinner {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid var(--model-chip-border);
+    border-top-color: var(--model-ink);
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+#model-loading p {
+    font-size: 12px;
+    color: var(--model-ink);
+    text-align: center;
+    padding: 0 var(--space-4);
+}
+
+/* заглушка для неактивных этажей */
+#stub-overlay {
+    position: absolute;
+    inset: 0;
+    background: var(--model-stub-bg);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+    border-radius: var(--radius-m);
+}
+
+#stub-overlay.visible { display: flex; }
+
+#stub-overlay span {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--model-ink);
+}
+
+/* кнопка-гамбургер для сайдбара: открывает панель после «Закрыть».
+   На десктопе прячется, пока сайдбар открыт (правило в блоке
+   min-width: 769px ниже), на узких экранах видна всегда. */
+#sidebar-toggle {
+    position: fixed;
+    top: var(--space-2);
+    left: var(--space-2);
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: var(--radius-s);
+    color: var(--ink);
+    transition: background var(--duration-fast) ease;
+}
+
+#sidebar-toggle:hover { background: var(--surface-hover); }
+
+/* кнопка «Закрыть» — тот же #sidebar-close, который слушает app.js.
+   Прижата к низу панели (margin-top: auto), тёмная заливка в белой теме
+   и светло-серая в тёмной берётся из --accent / --on-accent, поэтому
+   инверсия происходит вместе со сменой темы. */
+#sidebar .sidebar-close-btn {
+    display: block;
+    margin-top: auto;
+    width: 100%;
+    padding: 10px;
+    background: var(--accent);
+    color: var(--on-accent);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-s);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    cursor: pointer;
+    transition: background var(--duration-fast) ease,
+                border-color var(--duration-fast) ease;
+}
+
+#sidebar .sidebar-close-btn:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+/* сам сайдбар — закреплён в левом верхнем углу, открыт по умолчанию.
+
+   Состояние берётся из aria-hidden, который выставляет setSidebarOpen()
+   в app.js: атрибута нет — панель открыта (первая загрузка на десктопе),
+   "false" — открыта кнопкой ☰, "true" — закрыта кнопкой «Закрыть».
+   Так CSS и скринридер видят одно и то же состояние, а прежний рассинхрон
+   (видимая панель с aria-hidden="true") больше не возникает.
+
+   ПОБОЧНЫЙ ЭФФЕКТ логики app.js: applyGroupBtn после «Применить» вызывает
+   setSidebarOpen(false), то есть панель закроется и на десктопе. Если это
+   не нужно — минимальная правка в app.js: убрать эту одну строку из
+   обработчика applyGroupBtn, остальное не меняется.
+
+   Место под сайдбар в #app-wrapper зарезервировано всегда, в том числе
+   когда панель закрыта: сворачивать отступ нельзя, иначе меняется ширина
+   #model-container, а app.js при ресайзе не пересчитывает frustum
+   ортокамеры — модель растянется. */
+#sidebar {
+    position: fixed;
+    top: var(--sidebar-inset);
+    left: var(--sidebar-inset);
+    width: var(--sidebar-width);
+    height: calc(100% - var(--sidebar-inset) * 2);
+    background: var(--surface);
+    z-index: 15;
+    padding: var(--space-5);
+    box-sizing: border-box;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    border-radius: var(--radius-l);
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    transition: transform var(--duration-base) var(--ease);
+}
+
+/* закрытое состояние: уезжает влево и перестаёт ловить фокус */
+#sidebar[aria-hidden="true"] {
+    transform: translateX(calc(-100% - var(--sidebar-inset) - 4px));
+    visibility: hidden;
+    transition: transform var(--duration-base) var(--ease),
+                visibility 0s linear var(--duration-base);
+}
+
+/* класс .open ставит app.js вместе с aria-hidden="false" —
+   правило идёт последним, чтобы открытие всегда побеждало */
+#sidebar.open {
+    left: var(--sidebar-inset);
+    transform: translateX(0);
+    visibility: visible;
+    transition: transform var(--duration-base) var(--ease),
+                visibility 0s;
+}
+
+/* пока панель открыта, гамбургер не нужен и не должен на неё налезать */
+@media (min-width: 769px) {
+    :root:has(#sidebar:not([aria-hidden="true"])) #sidebar-toggle {
+        display: none;
+    }
+}
+
+#sidebar h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+/* секции сайдбара */
+.sidebar-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+/* заголовки секций сайдбара: крупнее и контрастнее прежнего
+   (12px/500/--ink-secondary), позиция и порядок не менялись */
+.sidebar-section-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--ink);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* «Группа» — тот же <label>, что и был, но в одном ритме
+   с остальными заголовками секций */
+#sidebar label {
+    display: block;
+    margin-bottom: var(--space-2);
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--ink);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* внутри секций отступы держит gap, поля не нужны */
+#sidebar .sidebar-section > label { margin-bottom: 0; }
+
+#sidebar select {
+    width: 100%;
+    padding: 8px 10px;
+    margin-bottom: var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-s);
+    box-sizing: border-box;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color var(--duration-fast) ease;
+}
+
+#sidebar .sidebar-section > select { margin-bottom: 0; }
+
+#sidebar select:hover { border-color: var(--border-strong); }
+
+/* выбранная группа выделена в раскрытом списке */
+#sidebar select option:checked {
+    background: var(--accent-soft);
+    color: var(--ink);
+    font-weight: 600;
+}
+
+#sidebar button {
+    width: 100%;
+    padding: 9px;
+    background: var(--accent);
+    color: var(--on-accent);
+    border: none;
+    border-radius: var(--radius-s);
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 13px;
+    transition: background var(--duration-fast) ease;
+}
+
+#sidebar button:hover { background: var(--accent-hover); }
+
+#sidebar .sidebar-week-btn {
+    margin-top: var(--space-3);
+}
+
+/* внутри переключателя периода кнопка живёт по своим правилам */
+#sidebar .view-switch .sidebar-week-btn { margin-top: 0; }
+
+/* сегментированный переключатель «на день / на неделю» */
+.view-switch {
+    display: flex;
+    gap: 2px;
+    padding: 3px;
+    background: var(--accent-soft);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-m);
+}
+
+#sidebar .view-switch-item {
+    flex: 1 1 0;
+    width: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 7px 8px;
+    border: none;
+    border-radius: var(--radius-s);
+    background: transparent;
+    color: var(--ink-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    user-select: none;
+    text-align: center;
+    transition: background var(--duration-fast) ease,
+                color var(--duration-fast) ease;
+}
+
+#sidebar .view-switch-item:hover {
+    background: var(--surface-hover);
+    color: var(--ink);
+}
+
+/* активная вкладка = текущая страница */
+#sidebar .view-switch-item.is-active,
+#sidebar .view-switch-item.is-active:hover {
+    background: var(--surface);
+    color: var(--ink);
+    font-weight: 600;
+    box-shadow: var(--shadow);
+    cursor: default;
+}
+
+/* переключатель темы */
+#sidebar .theme-switch {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin: 0;
+    padding: 2px 0;
+    font-size: 13px;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.theme-switch-input {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 36px;
+    height: 20px;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.theme-switch-track {
+    position: relative;
+    flex: 0 0 auto;
+    width: 36px;
+    height: 20px;
+    border-radius: 999px;
+    background: var(--surface-active);
+    border: 1px solid var(--border);
+    transition: background var(--duration-fast) ease,
+                border-color var(--duration-fast) ease;
+}
+
+.theme-switch-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    transition: transform var(--duration-fast) var(--ease);
+}
+
+.theme-switch-input:checked + .theme-switch-track {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.theme-switch-input:checked + .theme-switch-track .theme-switch-thumb {
+    transform: translateX(16px);
+}
+
+.theme-switch-input:focus-visible + .theme-switch-track {
+    outline: 1.5px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
+.theme-switch-text {
+    color: var(--ink);
+}
+
+/* лента пар */
+#pairs-container {
+    flex: 0 0 auto;
+    width: 100%;
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+    box-sizing: border-box;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ОГРАНИЧЕНИЕ: карточки пар создаёт app.js как <div> без tabindex, клики
+   ловит делегирование по .pair-card — с клавиатуры они недоступны, и CSS
+   этого не чинит. Минимальное вмешательство: в updatePairsUI добавить
+   card.tabIndex = 0 (стиль фокуса для них уже описан ниже). */
+.pair-card {
+    flex: 0 0 auto;
+    width: 200px;
+    max-width: 220px;
+    scroll-snap-align: start;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--border);
+    border-radius: var(--radius-s);
+    padding: 8px 10px;
+    font-size: 12px;
+    color: var(--ink);
+    cursor: pointer;
+    transition: transform var(--duration-base) ease,
+                box-shadow var(--duration-base) ease,
+                background-color var(--duration-base) ease,
+                border-color var(--duration-base) ease;
+}
+
+.pair-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-card-hover);
+    background-color: var(--surface-hover);
+}
+
+.pair-card:active {
+    transform: translateY(-1px) scale(0.98);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.pair-card:focus-visible {
+    outline: 1.5px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
+.pair-time { font-weight: 600; font-size: 11px; }
+.pair-name { font-size: 12px; margin: 2px 0; font-weight: 500; }
+.pair-room { font-size: 11px; color: var(--ink-secondary); }
+.pair-teacher { font-size: 11px; color: var(--ink-tertiary); }
+
+.no-pairs {
+    width: 100%;
+    text-align: center;
+    color: var(--ink-tertiary);
+    padding: var(--space-4);
+    font-size: 12px;
+}
+
+.pair-card.past { border-left-color: var(--status-past); }
+.pair-card.current { border-left-color: var(--status-current); background: var(--status-current-bg); }
+.pair-card.upcoming { border-left-color: var(--status-upcoming); }
+
+/* всплывающая панель кабинета.
+
+   ВЫБОР ВАРИАНТА: боковая панель справа, не модальное окно.
+   1) app.js закрывает её кликом вне панели и по Escape, но не ставит
+      фокус-ловушку и держит aria-modal="false" — панель по замыслу
+      немодальная, затемняющий оверлей противоречил бы этой логике;
+   2) сайдбар занимает левый край, свободное место остаётся справа —
+      панель не перекрывает ни сайдбар, ни центр карты;
+   3) карта остаётся видимой и кликабельной: можно перебирать кабинеты
+      подряд, не закрывая панель.
+   На ≤768px превращается в нижний лист (bottom sheet): по центру она
+   закрывала бы план этажа, а снизу остаётся в зоне большого пальца.
+
+   ВАЖНО про ширину: app.js при ресайзе вызывает renderer.setSize(), но не
+   пересчитывает frustum ортокамеры (camera.left/right/top/bottom заданы
+   только в fitCameraToModel), а строка controls?.handleResize() указывает
+   на несуществующий метод OrbitControls. Поэтому панель намеренно сделана
+   плавающим слоем: раскладка, «раздвигающая» #model-container при открытии,
+   каждый раз давала бы искажение пропорций модели. Плата за это — на
+   ширинах, где справа от контента нет 300px свободного места, панель
+   ложится поверх колонки этажей; она закрывается крестиком, Escape и
+   кликом вне себя, поэтому #floor-selector блокируется лишь временно. */
+#room-panel {
+    position: fixed;
+    right: max(var(--space-4), var(--room-panel-right));
+    top: 50%;
+    transform: translateY(-50%) translateX(0);
+    width: 300px;
+    max-height: 75vh;
+    overflow-y: auto;
+    background: var(--surface);
+    border-radius: var(--radius-m);
+    box-shadow: var(--shadow-panel);
+    z-index: 25;
+    padding: var(--space-4);
+    display: none;
+    border: 1px solid var(--border);
+}
+
+#room-panel.visible {
+    display: block;
+    animation: panel-in var(--duration-base) var(--ease);
+}
+
+@keyframes panel-in {
+    from {
+        opacity: 0;
+        transform: translateY(-50%) translateX(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(-50%) translateX(0);
+    }
+}
+
+#room-panel .close-btn {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: none;
+    border: none;
+    border-radius: 50%;
+    font-size: 16px;
+    cursor: pointer;
+    color: var(--ink-secondary);
+    transition: background var(--duration-fast) ease,
+                color var(--duration-fast) ease;
+}
+
+#room-panel .close-btn:hover {
+    background: var(--surface-hover);
+    color: var(--ink);
+}
+
+#room-panel h2 {
+    margin: 0 0 var(--space-3);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ink);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: var(--space-2);
+    padding-right: var(--space-4);
+}
+
+.room-pair-item {
+    background: var(--bg);
+    border-radius: var(--radius-s);
+    padding: 8px 10px;
+    margin-bottom: var(--space-2);
+    font-size: 12px;
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--border);
+    color: var(--ink);
+    animation: fade-item var(--duration-base) ease both;
+}
+
+@keyframes fade-item {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.room-pair-item.past { border-left-color: var(--status-past); }
+.room-pair-item.current { border-left-color: var(--status-current); background: var(--status-current-bg); }
+.room-pair-item.upcoming { border-left-color: var(--status-upcoming); }
+
+/* было 10px + --ink-tertiary #999 — мелко и по контрасту не проходило */
+.room-pair-date { font-size: 11px; color: var(--ink-tertiary); display: block; margin-bottom: 2px; }
+.room-pair-group { font-weight: 600; font-size: 13px; }
+.room-pair-teacher { font-size: 11px; color: var(--ink-tertiary); margin-top: 2px; }
+
+#room-panel-content p {
+    font-size: 12px;
+    color: var(--ink-tertiary);
+}
+
+/* адаптивные стили для планшетов и ниже */
+@media (max-width: 768px) {
+    body {
+        overflow-y: auto;
+        height: auto;
+        align-items: flex-start;
+    }
+
+    #app-wrapper {
+        height: auto;
+        min-height: 100vh;
+        padding: var(--space-2);
+        /* место под кнопку-гамбургер, чтобы она не легла на панель даты */
+        padding-top: 52px;
+    }
+
+    #main-container {
+        max-width: 100%;
+        height: auto;
+        gap: var(--space-2);
+    }
+
+    #content-row {
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        min-height: 0;
+    }
+
+    #map-column {
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+    }
+
+    #model-container {
+        flex: none;
+        height: 60vh;
+        min-height: 260px;
+        max-height: 70vh;
+    }
+
+    #pairs-container {
+        flex: none;
+        max-height: none;
+        height: auto;
+    }
+
+    #floor-selector {
+        order: 2;
+        width: 100%;
+        height: auto;
+        flex-direction: row;
+        justify-content: center;
+        padding: var(--space-2);
+        border-radius: var(--radius-m);
+        flex-shrink: 0;
+    }
+
+    .floor-numbers {
+        flex-direction: row;
+        gap: var(--space-3);
+    }
+
+    /* гамбургер нужен именно здесь: свайп от края работает только на
+       тач-устройствах, кнопка даёт доступ с клавиатуры и мышью */
+    #sidebar-toggle {
+        display: flex;
+    }
+
+    /* кнопка «Закрыть» на мобильных не прижимается к низу: панель
+       скроллится, и кнопка должна оставаться сразу под настройками */
+    #sidebar .sidebar-close-btn {
+        margin-top: var(--space-2);
+        padding: 12px;
+    }
+
+    /* панель кабинета — нижний лист */
+    #room-panel {
+        left: 0;
+        right: 0;
+        top: auto;
+        bottom: 0;
+        width: auto;
+        transform: none;
+        max-height: 62vh;
+        overflow-y: auto;
+        border-radius: var(--radius-l) var(--radius-l) 0 0;
+        border-bottom: none;
+        box-shadow: var(--shadow-panel);
+        padding: var(--space-4) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+    }
+
+    #room-panel.visible {
+        animation: panel-in-sheet var(--duration-base) var(--ease);
+    }
+
+    @keyframes panel-in-sheet {
+        from {
+            opacity: 0;
+            transform: translateY(24px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* сайдбар — выезжающая шторка */
+    #sidebar {
+        top: 0;
+        left: 0;
+        width: min(280px, 86vw);
+        height: 100%;
+        border: none;
+        border-right: 1px solid var(--border);
+        border-radius: 0;
+        box-shadow: none;
+        padding: 56px var(--space-5) var(--space-5);
+        transform: translateX(-100%);
+        /* скрыт не только визуально: закрытая шторка не ловит фокус */
+        visibility: hidden;
+        transition: transform var(--duration-base) var(--ease),
+                    visibility 0s linear var(--duration-base);
+    }
+
+    #sidebar.open {
+        left: 0;
+        transform: translateX(0);
+        visibility: visible;
+        box-shadow: var(--shadow-panel);
+        transition: transform var(--duration-base) var(--ease),
+                    visibility 0s;
+    }
+}
+
+/* узкие экраны (телефоны, от 360px) */
+@media (max-width: 480px) {
+    #app-wrapper {
+        padding: var(--space-1);
+        padding-top: 52px;
+    }
+
+    /* панель даты живёт в сайдбаре (280px), ужимать её не нужно —
+       поле остаётся крупным и читаемым */
+    #date-panel {
+        gap: var(--space-2);
+    }
+
+    #date-panel input[type="date"] {
+        padding: 10px 12px;
+        font-size: 14px;
+        min-width: 0;
+    }
+
+    .nav-btn {
+        width: 28px;
+        height: 28px;
+        font-size: 13px;
+        flex-shrink: 0;
+    }
+
+    #floor-selector {
+        padding: var(--space-1);
+    }
+
+    .floor-numbers span {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+    }
+
+    #model-container {
+        height: 55vh;
+        min-height: 200px;
+    }
+
+    #status-legend {
+        gap: var(--space-2);
+        font-size: 10px;
+    }
+
+    #pairs-container {
+        max-height: none;
+    }
+
+    .pair-card {
+        width: 160px;
+        flex-basis: 160px;
+        max-width: 160px;
+        padding: 6px 8px;
+        font-size: 11px;
+    }
+
+    #room-panel {
+        padding: var(--space-3) var(--space-3) calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+        max-height: 70vh;
+    }
+
+    #room-panel h2 {
+        font-size: 15px;
+    }
+}
+
+/* очень низкие экраны (ландшафтная ориентация):
+   нижний лист съел бы весь экран, поэтому панель снова боковая */
+@media (max-height: 500px) and (orientation: landscape) {
+    body {
+        overflow-y: auto;
+        height: auto;
+    }
+
+    #app-wrapper {
+        height: auto;
+        min-height: 100vh;
+        padding: var(--space-1);
+        padding-top: 48px;
+    }
+
+    #date-panel {
+        padding: 0;
+    }
+
+    #content-row {
+        gap: var(--space-1);
+    }
+
+    #model-container {
+        height: 70vh;
+        min-height: 200px;
+    }
+
+    #pairs-container {
+        max-height: none;
+        height: auto;
+    }
+
+    #floor-selector {
+        padding: var(--space-1);
+    }
+
+    .floor-numbers span {
+        width: 24px;
+        height: 24px;
+        font-size: 10px;
+    }
+
+    #room-panel {
+        left: auto;
+        right: max(var(--space-3), var(--room-panel-right));
+        top: 50%;
+        bottom: auto;
+        width: 280px;
+        max-width: calc(100% - var(--space-5));
+        transform: translateY(-50%);
+        max-height: 88vh;
+        border-radius: var(--radius-m);
+        border-bottom: 1px solid var(--border);
+        padding: var(--space-3);
+    }
+
+    #room-panel.visible {
+        animation: panel-in-center var(--duration-base) var(--ease);
+    }
+
+    @keyframes panel-in-center {
+        from {
+            opacity: 0;
+            transform: translateY(-50%) scale(0.96);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(-50%) scale(1);
+        }
+    }
+}
+
+/* уважение к системной настройке «меньше движения» */
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --duration-fast: 0.001s;
+        --duration-base: 0.001s;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    .spinner {
+        animation: none;
+        border-top-color: var(--accent);
+    }
+
+    .pair-card:hover,
+    .pair-card:active {
+        transform: none;
+    }
+}
+
+/* ==========================================================================
+   ДОБАВЛЕННЫЕ ТОКЕНЫ И КЛАССЫ (существующие имена не менялись)
+   переменные: --surface-hover, --surface-active, --border-strong,
+               --accent-soft, --on-accent, --overlay-bg, --overlay-veil,
+               --focus-ring, --shadow, --shadow-card-hover, --shadow-panel,
+               --duration-fast, --duration-base, --ease,
+               --sidebar-width, --sidebar-inset, --content-max,
+               --floor-column-width, --room-panel-right
+   карта (одинакова во всех темах): --model-bg, --model-chip-bg,
+               --model-chip-border, --model-ink, --model-stub-bg
+   темы:       :root (белая, по умолчанию), [data-theme="white"],
+               [data-theme="light"] (прежняя тёплая), [data-theme="dark"]
+               и тот же тёмный набор через :has(#theme-toggle:checked)
+   классы/id:  .sidebar-section, .sidebar-section-title, .view-switch,
+               .view-switch-item, .is-active, .theme-switch,
+               .theme-switch-input, .theme-switch-track, .theme-switch-thumb,
+               .theme-switch-text, #theme-toggle, #date-panel-label,
+               .date-nav, .nav-btn-arrow
+   ========================================================================== */
