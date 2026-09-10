@@ -21,7 +21,7 @@
     --status-upcoming: #a600ff;
     --status-upcoming-bg: #F7F2E8;
 
-    /* добавленные токены (сводка — в конце файла) */
+    /* добавленные токены  */
     --surface-hover: #F1F1F1;
     --surface-active: #E7E7E7;
     --border-strong: #BFBFBF;
@@ -30,6 +30,11 @@
     --overlay-bg: rgba(255, 255, 255, 0.94);
     --overlay-veil: rgba(255, 255, 255, 0.95);
     --focus-ring: #1A1A1A;
+    /* Красная кнопка «Закрыть». Сам красный одинаков во всех темах,
+       а цвет надписи на нём меняется — см. блоки тем ниже. */
+    --danger: #D93A3A;
+    --danger-hover: #C22F2F;
+    --on-danger: #FFFFFF;
     /* фон сцены продублирован из app.js, чтобы фон канваса и фон
        страницы не расходились при смене темы */
     --model-bg: #F5F2EA;
@@ -55,12 +60,24 @@
     --duration-fast: 0.15s;
     --duration-base: 0.25s;
     --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+    /* Кривая и длительности выезда сайдбара. */
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    --duration-drawer-in: 0.36s;
+    --duration-drawer-out: 0.22s;
+    /* затемнение позади открытой шторки */
+    --scrim: rgba(18, 20, 24, 0.44);
 
     /* геометрия закреплённого сайдбара и контентной колонки */
     --sidebar-width: 260px;
     --sidebar-inset: var(--space-4);
     --content-max: 1100px;
     --floor-column-width: 48px;
+    /* верхняя зона, которую шторка расписания не перекрывает:
+       кнопка ☰ (46px) + отступы */
+    --sheet-top-gap: 76px;
+    /* Высота верхней полосы на телефоне: под ней начинается контент
+       и от неё же отсчитывается карточка кабинета. */
+    --mobile-top-bar: 62px;
 
     /* Правый отступ панели кабинета: считается так, чтобы её правый край
        остановился на 12px левее колонки этажей. #main-container центрирован
@@ -108,6 +125,9 @@
     --overlay-bg: rgba(255, 255, 255, 0.94);
     --overlay-veil: rgba(255, 255, 255, 0.95);
     --focus-ring: #1A1A1A;
+    --danger: #D93A3A;
+    --danger-hover: #C22F2F;
+    --on-danger: #FFFFFF;
     --status-past-bg: #F4F1EF;
     --status-current-bg: #ECF3EE;
     --status-upcoming-bg: #F6F2E9;
@@ -133,6 +153,9 @@
     --overlay-bg: rgba(255, 255, 255, 0.92);
     --overlay-veil: rgba(250, 250, 248, 0.95);
     --focus-ring: #1A1A1A;
+    --danger: #D93A3A;
+    --danger-hover: #C22F2F;
+    --on-danger: #FFFFFF;
     --model-bg: #F5F2EA;
 }
 
@@ -157,6 +180,11 @@
     --overlay-bg: rgba(42, 46, 52, 0.92);
     --overlay-veil: rgba(33, 36, 41, 0.95);
     --focus-ring: #C8CDD4;
+    /* Красный чуть светлее, чем в светлых темах */
+    --danger: #E85C5C;
+    --danger-hover: #F07070;
+    --on-danger: #1B0F0E;
+    --scrim: rgba(0, 0, 0, 0.6);
     /* статусные цвета приглушены под темный фон */
     --status-past: #ff0000;
     --status-past-bg: #34302D;
@@ -417,35 +445,99 @@ canvas {
     cursor: pointer;
 }
 
+/* Пока открыта шторка расписания, карта не принимает ни клики, ни жесты.
+   pointer-events: none означает «элемент не ловит мышь и касания»:
+   OrbitControls слушает канвас, а pointer-events до него не доходят.
+   Так перетаскивание внутри панели не крутит модель под ней. */
+:root:has(#schedule-toggle:checked) #model-container {
+    pointer-events: none;
+}
+
 #model-container canvas:active {
     cursor: grabbing;
 }
 
 
-/* информационные блоки поверх модели */
-#click-info {
+/* Кнопка «Подробнее» в левом нижнем углу карты. На её месте потом
+   разворачивается легенда, поэтому координаты у них одинаковые. */
+.legend-control {
     position: absolute;
     bottom: var(--space-3);
     left: var(--space-3);
     z-index: 4;
-    background: var(--model-chip-bg);
-    padding: 5px 10px;
-    border-radius: var(--radius-s);
-    pointer-events: none;
-    font-size: 12px;
-    color: var(--model-ink);
-    border: 1px solid var(--model-chip-border);
-    max-width: calc(100% - var(--space-5));
+    display: inline-flex;
 }
 
+/* Чекбокс невидим, но лежит поверх кнопки: нажатие попадает в него,
+   и он же ловит фокус с клавиатуры. */
+.legend-toggle-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+/* Когда легенда открыта, кнопку «Подробнее» прячем, а чекбокс перестаём
+   нажимать мышью — иначе он ловил бы клики поверх самой легенды.
+   Фокус с клавиатуры при этом не теряется. */
+:root:has(#legend-toggle:checked) .legend-btn-show {
+    display: none;
+}
+
+:root:has(#legend-toggle:checked) .legend-toggle-input {
+    pointer-events: none;
+}
+
+/* Обе кнопки — «Подробнее» и «Скрыть» — выглядят одинаково
+   и повторяют оформление плашек над картой. */
+.legend-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 12px;
+    background: var(--model-chip-bg);
+    border: 1px solid var(--model-chip-border);
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--model-ink);
+    cursor: pointer;
+    user-select: none;
+    pointer-events: auto;   /* сама легенда клики пропускает, кнопка — нет */
+    transition: background var(--duration-fast) ease;
+}
+
+.legend-btn-hide {
+    align-self: stretch;
+    margin-top: var(--space-1);
+}
+
+.legend-toggle-input:focus-visible + .legend-btn,
+:root:has(#legend-toggle:focus-visible) .legend-btn-hide {
+    outline: 1.5px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
+/* Легенда статусов. Прижата к левому нижнему углу карты — на то же место,
+   где стояла кнопка «Подробнее». Показывается только когда чекбокс отмечен.
+   Пункты идут столбиком: плашка узкая и на телефоне почти не отъедает места.
+   (Захотите вернуть их в строку — поменяйте flex-direction на row.) */
 #status-legend {
     position: absolute;
-    top: var(--space-3);
+    top: auto;
+    bottom: var(--space-3);
     left: var(--space-3);
+    right: auto;
+    transform: none;
     z-index: 4;
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-3);
+    display: none;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: var(--space-2);
     background: var(--model-chip-bg);
     padding: 5px 10px;
     border-radius: var(--radius-s);
@@ -454,6 +546,16 @@ canvas {
     color: var(--model-ink);
     pointer-events: none;
     max-width: calc(100% - var(--space-5));
+}
+
+:root:has(#legend-toggle:checked) #status-legend {
+    display: flex;
+    animation: legend-in var(--duration-base) var(--ease-drawer);
+}
+
+@keyframes legend-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 #status-legend .legend-item {
@@ -681,14 +783,17 @@ canvas {
 }
 
 /* кнопка «Закрыть» */
+/* «Закрыть» выделена красным во всех темах: это единственное действие
+   в сайдбаре, которое убирает панель с экрана. Цвет надписи берётся из
+   --on-danger и отличается по темам: в светлых белый, в тёмной тёмный. */
 #sidebar .sidebar-close-btn {
     display: block;
     margin-top: 0;
     width: 100%;
     padding: 10px;
-    background: var(--accent);
-    color: var(--on-accent);
-    border: 1px solid var(--accent);
+    background: var(--danger);
+    color: var(--on-danger);
+    border: 1px solid var(--danger);
     border-radius: var(--radius-s);
     font-size: 13px;
     font-weight: 500;
@@ -698,6 +803,20 @@ canvas {
                 border-color var(--duration-fast) ease;
 }
 
+
+/* Затемнение позади шторки. Всегда лежит в разметке, но по умолчанию
+   прозрачное и не ловит нажатия, поэтому карте не мешает. Показывается
+   только на узких экранах — на десктопе сайдбар карту не перекрывает
+   и затемнять нечего (правило в блоке max-width: 768px). */
+#sidebar-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 14;
+    background: var(--scrim);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--duration-drawer-out) var(--ease-drawer);
+}
 
 /* сам сайдбар — закреплён в левом верхнем углу, открыт по умолчанию. */
 #sidebar {
@@ -718,15 +837,15 @@ canvas {
     display: flex;
     flex-direction: column;
     gap: var(--space-5);
-    transition: transform var(--duration-base) var(--ease);
+    transition: transform var(--duration-drawer-in) var(--ease-drawer);
 }
 
 /* закрытое состояние: уезжает влево и перестаёт ловить фокус */
 #sidebar[aria-hidden="true"] {
     transform: translateX(calc(-100% - var(--sidebar-inset) - 4px));
     visibility: hidden;
-    transition: transform var(--duration-base) var(--ease),
-                visibility 0s linear var(--duration-base);
+    transition: transform var(--duration-drawer-out) var(--ease-drawer),
+                visibility 0s linear var(--duration-drawer-out);
 }
 
 /* класс .open ставит app.js вместе с aria-hidden="false" —
@@ -735,7 +854,7 @@ canvas {
     left: var(--sidebar-inset);
     transform: translateX(0);
     visibility: visible;
-    transition: transform var(--duration-base) var(--ease),
+    transition: transform var(--duration-drawer-in) var(--ease-drawer),
                 visibility 0s;
 }
 
@@ -743,6 +862,32 @@ canvas {
 @media (min-width: 769px) {
     :root:has(#sidebar:not([aria-hidden="true"])) #sidebar-toggle {
         display: none;
+    }
+}
+
+/* Содержимое въезжает следом за самой шторкой, по очереди сверху вниз.
+   Каждый следующий блок стартует на 40 мс позже — движение читается как
+   одно, а не как рывок всей панели. Работает только при открытии
+   (класс .open), поэтому на десктопе при первой загрузке ничего не мигает. */
+#sidebar.open > * {
+    animation: sidebar-item-in var(--duration-base) var(--ease-drawer) both;
+}
+
+#sidebar.open > *:nth-child(1) { animation-delay: 0.06s; }
+#sidebar.open > *:nth-child(2) { animation-delay: 0.10s; }
+#sidebar.open > *:nth-child(3) { animation-delay: 0.14s; }
+#sidebar.open > *:nth-child(4) { animation-delay: 0.18s; }
+#sidebar.open > *:nth-child(5) { animation-delay: 0.22s; }
+#sidebar.open > *:nth-child(6) { animation-delay: 0.26s; }
+
+@keyframes sidebar-item-in {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
     }
 }
 
@@ -977,17 +1122,22 @@ canvas {
 /* лента пар */
 /* был горизонтальный скроллер под картой — теперь вертикальный
    список внутри #schedule-panel */
+/* Список пар. Сетка auto-fill сама решает, сколько колонок поместится:
+   на широкой шторке выходит 2-3, на телефоне одна. Ничего настраивать
+   под каждый размер экрана не нужно. */
 #pairs-container {
     flex: 1 1 auto;
     width: 100%;
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    align-content: start;
     overflow-x: hidden;
     overflow-y: auto;
     gap: var(--space-2);
     padding: var(--space-1) 0;
     box-sizing: border-box;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
 }
 
 /* карточки пар создаёт app.js как дивку без tabindex, клики
@@ -995,14 +1145,13 @@ canvas {
    этого не чинит. Минимальное вмешательство: в updatePairsUI добавить
    card.tabIndex = 0 (стиль фокуса для них уже описан ниже). */
 .pair-card {
-    flex: 0 0 auto;
-    width: 100%;
+    width: auto;
     max-width: none;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-left: 2px solid var(--border);
-    border-radius: var(--radius-s);
-    padding: 8px 10px;
+    border-left: 3px solid var(--border);
+    border-radius: var(--radius-m);
+    padding: 10px 12px;
     font-size: 12px;
     color: var(--ink);
     cursor: pointer;
@@ -1023,12 +1172,40 @@ canvas {
     outline-offset: 2px;
 }
 
-.pair-time { font-weight: 600; font-size: 11px; }
-.pair-name { font-size: 12px; margin: 2px 0; font-weight: 500; }
-.pair-room { font-size: 11px; color: var(--ink-secondary); }
-.pair-teacher { font-size: 11px; color: var(--ink-tertiary); }
+.pair-time {
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    color: var(--ink-secondary);
+}
+
+.pair-name {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+    margin: 4px 0 6px;
+}
+
+/* номер кабинета — компактной таблеткой, чтобы цеплялся взглядом */
+.pair-room {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--ink);
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.pair-teacher {
+    font-size: 11px;
+    color: var(--ink-tertiary);
+    margin-top: 6px;
+}
 
 .no-pairs {
+    grid-column: 1 / -1;
     width: 100%;
     text-align: center;
     color: var(--ink-tertiary);
@@ -1040,6 +1217,48 @@ canvas {
 .pair-card.current { border-left-color: var(--status-current); background: var(--status-current-bg); }
 .pair-card.upcoming { border-left-color: var(--status-upcoming); }
 
+/* Полоса под картой. На десктопе не нужна — там свободного места нет,
+   поэтому показывается только на узких экранах. */
+#map-footer {
+    display: none;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    padding-top: var(--space-1);
+}
+
+.map-footer-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: 40px;
+    padding: 0 var(--space-5);
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    box-shadow: var(--shadow);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background var(--duration-fast) ease,
+                border-color var(--duration-fast) ease,
+                transform var(--duration-fast) var(--ease);
+}
+
+.map-footer-btn:active {
+    transform: scale(0.97);
+    background: var(--surface-active);
+}
+
+.map-footer-btn-icon {
+    font-size: 15px;
+    line-height: 1;
+    color: var(--ink-secondary);
+}
+
 /* панель расписания.
    Открывается кнопкой в сайдбаре, стоит слева — вплотную к сайдбару, на
    противоположной стороне от панели кабинета, поэтому две панели не спорят
@@ -1048,22 +1267,46 @@ canvas {
    #pairs-container внутри — тот же самый узел, который наполняет app.js
    в updatePairsUI(), поэтому содержимое всегда соответствует выбранной
    группе и дате. */
+/* ПАНЕЛЬ РАСПИСАНИЯ.
+   Открывается кнопкой в сайдбаре или свайпом снизу вверх (см. app.js).
+   Показывается через :has() — если чекбокс #schedule-toggle отмечен,
+   правило ниже меняет display с none на flex.
+
+   Шторка снизу на всех экранах. На десктопе центрируется в области
+   справа от сайдбара (left/right + margin: auto), на телефоне занимает
+   всю ширину. Верхние 72px экрана не перекрываются никогда — там живёт
+   кнопка вызова сайдбара. */
 #schedule-panel {
     position: fixed;
-    top: var(--sidebar-inset);
+    top: auto;
+    bottom: 0;
     left: calc(var(--sidebar-width) + var(--sidebar-inset) * 2);
-    width: 300px;
-    max-width: calc(100vw - var(--sidebar-width) - var(--sidebar-inset) * 3);
-    max-height: calc(100% - var(--sidebar-inset) * 2);
+    right: var(--space-4);
+    margin: 0 auto;
+    width: auto;
+    max-width: 760px;
+    max-height: calc(100dvh - var(--sheet-top-gap));
     display: none;
     flex-direction: column;
     gap: var(--space-2);
-    padding: var(--space-4);
+    padding: var(--space-2) var(--space-4) var(--space-4);
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius-m);
+    border-bottom: none;
+    border-radius: var(--radius-l) var(--radius-l) 0 0;
     box-shadow: var(--shadow-panel);
     z-index: 24;
+}
+
+/* ручка захвата: подсказывает, что шторку можно тянуть */
+.schedule-panel-grip {
+    flex-shrink: 0;
+    align-self: center;
+    width: 40px;
+    height: 4px;
+    margin-bottom: var(--space-1);
+    border-radius: 999px;
+    background: var(--border-strong);
 }
 
 :root:has(#schedule-toggle:checked) #schedule-panel {
@@ -1072,8 +1315,8 @@ canvas {
 }
 
 @keyframes schedule-in {
-    from { opacity: 0; transform: translateX(-12px); }
-    to   { opacity: 1; transform: translateX(0); }
+    from { opacity: 0; transform: translateY(28px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 .schedule-panel-head {
@@ -1112,13 +1355,22 @@ canvas {
 
 
 /* всплывающая панель кабинета. */
+/* Карточка кабинета висит СВЕРХУ карты — на месте, где раньше была
+   легенда. Так она не закрывает ни выбор этажа, ни кнопку «Сбросить вид»
+   внизу экрана. Значения left/right повторяют границы карты: слева
+   сайдбар, справа колонка этажей, а margin: 0 auto центрирует карточку
+   между ними. */
 #room-panel {
     position: fixed;
-    right: max(var(--space-4), var(--room-panel-right));
-    top: 50%;
-    transform: translateY(-50%) translateX(0);
-    width: 300px;
-    max-height: 75vh;
+    top: calc(var(--sidebar-inset) + var(--space-3));
+    left: calc(var(--sidebar-width) + var(--sidebar-inset) * 2 + var(--space-3));
+    right: calc(var(--space-4) + var(--floor-column-width) + var(--space-3));
+    bottom: auto;
+    margin: 0 auto;
+    transform: none;
+    width: auto;
+    max-width: 340px;
+    max-height: min(46vh, 340px);
     overflow-y: auto;
     background: var(--surface);
     border-radius: var(--radius-m);
@@ -1134,14 +1386,15 @@ canvas {
     animation: panel-in var(--duration-base) var(--ease);
 }
 
+/* карточка мягко съезжает сверху */
 @keyframes panel-in {
     from {
         opacity: 0;
-        transform: translateY(-50%) translateX(12px);
+        transform: translateY(-12px);
     }
     to {
         opacity: 1;
-        transform: translateY(-50%) translateX(0);
+        transform: translateY(0);
     }
 }
 
@@ -1164,6 +1417,36 @@ canvas {
                 color var(--duration-fast) ease;
 }
 
+
+/* Кнопка «Назад к расписанию». Спрятана по умолчанию и появляется,
+   только когда app.js вешает на карточку класс can-return —
+   то есть когда расписание свернулось ради этой карточки. */
+.room-panel-back {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: var(--space-3);
+    padding: 7px 12px;
+    background: var(--accent-soft);
+    color: var(--ink);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background var(--duration-fast) ease,
+                border-color var(--duration-fast) ease;
+}
+
+#room-panel.can-return .room-panel-back {
+    display: inline-flex;
+}
+
+.room-panel-back-icon {
+    font-size: 13px;
+    line-height: 1;
+}
 
 #room-panel h2 {
     margin: 0 0 var(--space-3);
@@ -1214,28 +1497,30 @@ canvas {
 
 /* адаптивные стили для планшетов и ниже */
 @media (max-width: 768px) {
+    /* экран целиком, без прокрутки страницы: карта тянется на всю
+       свободную высоту, выбор этажа и футер прижаты к низу */
     body {
-        overflow-y: auto;
-        height: auto;
-        align-items: flex-start;
+        overflow: hidden;
+        height: 100dvh;
+        align-items: stretch;
     }
 
     #app-wrapper {
-        height: auto;
-        min-height: 100vh;
+        height: 100%;
+        min-height: 0;
         padding: var(--space-2);
         /* место под кнопку-гамбургер (46px + отступ сверху) */
-        padding-top: 62px;
+        padding-top: var(--mobile-top-bar);
     }
 
     #main-container {
         max-width: 100%;
-        height: auto;
+        height: 100%;
         gap: var(--space-2);
     }
 
     #content-row {
-        flex: none;
+        flex: 1 1 auto;
         display: flex;
         flex-direction: column;
         gap: var(--space-2);
@@ -1243,40 +1528,35 @@ canvas {
     }
 
     #map-column {
-        flex: none;
+        flex: 1 1 auto;
         display: flex;
         flex-direction: column;
         gap: var(--space-2);
+        min-height: 0;
     }
 
     #model-container {
-        flex: none;
-        height: 60vh;
-        min-height: 260px;
-        max-height: 70vh;
+        flex: 1 1 auto;
+        height: auto;
+        min-height: 180px;
+        max-height: none;
     }
 
-    /* панель расписания — нижний лист, как и панель кабинета */
+    #map-footer {
+        display: flex;
+    }
+
+    /* пока шторка сайдбара открыта, карта под ней не реагирует на жесты */
+    :root:has(#sidebar.open) #model-container {
+        pointer-events: none;
+    }
+
+    /* шторка во всю ширину экрана */
     #schedule-panel {
-        top: auto;
         left: 0;
         right: 0;
-        bottom: 0;
-        width: auto;
         max-width: none;
-        max-height: 70vh;
-        border-radius: var(--radius-l) var(--radius-l) 0 0;
-        border-bottom: none;
-        padding: var(--space-4) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
-    }
-
-    :root:has(#schedule-toggle:checked) #schedule-panel {
-        animation: schedule-in-sheet var(--duration-base) var(--ease);
-    }
-
-    @keyframes schedule-in-sheet {
-        from { opacity: 0; transform: translateY(24px); }
-        to   { opacity: 1; transform: translateY(0); }
+        padding: var(--space-2) var(--space-3) calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
     }
 
     #pairs-container {
@@ -1307,6 +1587,12 @@ canvas {
         display: flex;
     }
 
+    /* Пока сайдбар выехал, кнопка-гамбургер прячется: она бы висела
+       поверх открытой панели. Класс .open ставит app.js. */
+    :root:has(#sidebar.open) #sidebar-toggle {
+        display: none;
+    }
+
     /* на мобильных панель скроллится, поэтому пару кнопок не прижимаем
        к низу — она идёт сразу под настройками */
     .sidebar-footer {
@@ -1322,34 +1608,21 @@ canvas {
     }
 
     /* панель кабинета — нижний лист */
+    /* На телефоне карточка тоже сверху: сразу под кнопкой ☰,
+       во всю ширину экрана за вычетом полей. */
     #room-panel {
-        left: 0;
-        right: 0;
-        top: auto;
-        bottom: 0;
+        top: calc(var(--mobile-top-bar) + var(--space-2));
+        left: var(--space-3);
+        right: var(--space-3);
+        bottom: auto;
         width: auto;
+        max-width: none;
         transform: none;
-        max-height: 62vh;
+        max-height: 44dvh;
         overflow-y: auto;
-        border-radius: var(--radius-l) var(--radius-l) 0 0;
-        border-bottom: none;
+        border-radius: var(--radius-l);
         box-shadow: var(--shadow-panel);
-        padding: var(--space-4) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
-    }
-
-    #room-panel.visible {
-        animation: panel-in-sheet var(--duration-base) var(--ease);
-    }
-
-    @keyframes panel-in-sheet {
-        from {
-            opacity: 0;
-            transform: translateY(24px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        padding: var(--space-3);
     }
 
     /* сайдбар — выезжающая шторка */
@@ -1366,8 +1639,10 @@ canvas {
         transform: translateX(-100%);
         /* скрыт не только визуально: закрытая шторка не ловит фокус */
         visibility: hidden;
-        transition: transform var(--duration-base) var(--ease),
-                    visibility 0s linear var(--duration-base);
+        /* закрытие быстрее открытия — так интерфейс кажется отзывчивее */
+        transition: transform var(--duration-drawer-out) var(--ease-drawer),
+                    box-shadow var(--duration-drawer-out) linear,
+                    visibility 0s linear var(--duration-drawer-out);
     }
 
     #sidebar.open {
@@ -1375,8 +1650,16 @@ canvas {
         transform: translateX(0);
         visibility: visible;
         box-shadow: var(--shadow-panel);
-        transition: transform var(--duration-base) var(--ease),
+        transition: transform var(--duration-drawer-in) var(--ease-drawer),
+                    box-shadow var(--duration-drawer-in) linear,
                     visibility 0s;
+    }
+
+    /* затемнение включается вместе со шторкой */
+    :root:has(#sidebar.open) #sidebar-scrim {
+        opacity: 1;
+        pointer-events: auto;
+        transition: opacity var(--duration-drawer-in) var(--ease-drawer);
     }
 }
 
@@ -1384,7 +1667,7 @@ canvas {
 @media (max-width: 480px) {
     #app-wrapper {
         padding: var(--space-1);
-        padding-top: 62px;
+        padding-top: var(--mobile-top-bar);
     }
 
     /* панель даты живёт в сайдбаре (280px), ужимать её не нужно —
@@ -1455,11 +1738,16 @@ canvas {
         height: auto;
     }
 
+    /* на низком экране верхняя полоса ниже — кнопка ☰ прижата к краю */
+    :root {
+        --mobile-top-bar: 56px;
+    }
+
     #app-wrapper {
         height: auto;
         min-height: 100vh;
         padding: var(--space-1);
-        padding-top: 56px;
+        padding-top: var(--mobile-top-bar);
     }
 
     #sidebar-toggle {
@@ -1480,16 +1768,11 @@ canvas {
         min-height: 200px;
     }
 
+    /* низкий экран: шторка остаётся снизу, но верхняя свободная зона
+       меньше — иначе на неё не остаётся высоты */
     #schedule-panel {
-        top: var(--space-2);
-        left: var(--space-2);
-        right: auto;
-        bottom: auto;
-        width: 280px;
-        max-width: calc(100vw - var(--space-5));
-        max-height: calc(100% - var(--space-4));
-        border-radius: var(--radius-m);
-        padding: var(--space-3);
+        --sheet-top-gap: 56px;
+        padding: var(--space-1) var(--space-3) var(--space-3);
     }
 
     #pairs-container {
@@ -1508,32 +1791,16 @@ canvas {
     }
 
     #room-panel {
-        left: auto;
-        right: max(var(--space-3), var(--room-panel-right));
-        top: 50%;
+        top: calc(var(--mobile-top-bar) + var(--space-1));
+        left: var(--space-2);
+        right: var(--space-2);
         bottom: auto;
-        width: 280px;
-        max-width: calc(100% - var(--space-5));
-        transform: translateY(-50%);
-        max-height: 88vh;
+        width: auto;
+        max-width: none;
+        transform: none;
+        max-height: calc(100dvh - var(--mobile-top-bar) - var(--space-4));
         border-radius: var(--radius-m);
-        border-bottom: 1px solid var(--border);
         padding: var(--space-3);
-    }
-
-    #room-panel.visible {
-        animation: panel-in-center var(--duration-base) var(--ease);
-    }
-
-    @keyframes panel-in-center {
-        from {
-            opacity: 0;
-            transform: translateY(-50%) scale(0.96);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(-50%) scale(1);
-        }
     }
 }
 
@@ -1542,6 +1809,15 @@ canvas {
    подсвеченной (а гамбургер — раскрытым) до следующего касания. Поэтому
    все они собраны здесь; :active и :focus-visible работают везде. */
 @media (hover: hover) and (pointer: fine) {
+    .legend-btn:hover {
+        background: var(--surface);
+    }
+
+    .room-panel-back:hover {
+        background: var(--surface-hover);
+        border-color: var(--border-strong);
+    }
+
     #date-panel input[type="date"]:hover {
         border-color: var(--border-strong);
         background: var(--surface-hover);
@@ -1584,8 +1860,8 @@ canvas {
     #sidebar .sidebar-action-btn:hover {    background: var(--surface-hover);}
 
     #sidebar .sidebar-close-btn:hover {
-        background: var(--accent-hover);
-        border-color: var(--accent-hover);
+        background: var(--danger-hover);
+        border-color: var(--danger-hover);
     }
 
     #sidebar select:hover { border-color: var(--border-strong); }

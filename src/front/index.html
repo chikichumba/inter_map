@@ -28,7 +28,8 @@
             </div>
         </div>
 
-        <!-- блок 2: выбор группы, под ним кнопка «Применить» -->
+        <!-- Блок 2: выбор группы. Отдельной кнопки «Применить» нет —
+             группа применяется сама, когда открываешь расписание. -->
         <div class="sidebar-section">
             <label for="group-select">Группа</label>
             <select id="group-select">
@@ -39,7 +40,6 @@
                 <option value="Группа 5">Группа 5</option>
                 <option value="Группа 6">Группа 6</option>
             </select>
-            <button id="apply-group" type="button">Применить</button>
         </div>
 
         <!-- блок 3: выбор даты (перенесён из-над карты) -->
@@ -73,7 +73,9 @@
 
         <!-- две кнопки внизу панели, вплотную друг к другу -->
         <div class="sidebar-footer">
-            <!-- показ панели расписания: чистый CSS (чекбокс + :has), JS не нужен -->
+            <!-- Кнопка расписания. Под ней спрятан чекбокс: он отмечен —
+                 шторка открыта, снят — закрыта. Открытие заодно применяет
+                 выбранную выше группу, поэтому жать «Применить» не обязательно. -->
             <div class="sidebar-action">
                 <input type="checkbox" id="schedule-toggle" class="schedule-toggle-input">
                 <label for="schedule-toggle" class="sidebar-action-btn">
@@ -86,6 +88,10 @@
             <button id="sidebar-close" class="sidebar-close-btn" type="button" aria-label="Закрыть меню">Закрыть</button>
         </div>
     </aside>
+
+    <!-- Затемнение позади выехавшего сайдбара (только на телефоне).
+         Появляется вместе с ним и закрывает его по нажатию. -->
+    <div id="sidebar-scrim" aria-hidden="true"></div>
 
     <!-- основной контент -->
     <div id="app-wrapper">
@@ -102,12 +108,22 @@
                             <div class="spinner" role="status" aria-label="Загрузка модели"></div>
                             <p>Загружаем план этажа…</p>
                         </div>
+                        <!-- Легенда карты вызывается кнопкой. Состояние хранит
+                             скрытый чекбокс: снят — видна кнопка «Подробнее»,
+                             отмечен — вместо неё разворачивается легенда
+                             с кнопкой «Скрыть». Обе кнопки — это label
+                             одного и того же чекбокса, поэтому JS не нужен. -->
+                        <div class="legend-control">
+                            <input type="checkbox" id="legend-toggle" class="legend-toggle-input" aria-label="Показать легенду карты">
+                            <label for="legend-toggle" class="legend-btn legend-btn-show">Подробнее</label>
+                        </div>
+
                         <div id="status-legend">
                             <span class="legend-item"><span class="dot current"></span>Идёт сейчас</span>
                             <span class="legend-item"><span class="dot upcoming"></span>Предстоит</span>
                             <span class="legend-item"><span class="dot past"></span>Прошло</span>
+                            <label for="legend-toggle" class="legend-btn legend-btn-hide">Скрыть</label>
                         </div>
-                        <div id="click-info" role="status" aria-live="polite">Кликните по объекту</div>
                         <div id="stub-overlay" role="status" aria-live="polite">
                             <video class="stub-video" src="videos/stub-floor.mp4" autoplay muted loop playsinline preload="auto" aria-hidden="true"></video>
                         </div>
@@ -128,6 +144,15 @@
                     </div>
                 </nav>
             </div>
+
+            <!-- Нижняя полоса. На телефоне под выбором этажа оставалось
+                 пустое место — теперь там кнопка возврата камеры.
+                 На широком экране полоса скрыта: там пустоты нет. -->
+            <div id="map-footer">
+                <button id="reset-view" class="map-footer-btn" type="button">
+                    <span class="map-footer-btn-icon" aria-hidden="true">⤢</span>Сбросить вид
+                </button>
+            </div>
         </div>
     </div>
 
@@ -135,6 +160,8 @@
          #pairs-container тот же самый — его наполняет app.js при смене группы
          и даты, поэтому содержимое панели зависит от текущего выбора -->
     <div id="schedule-panel" role="region" aria-labelledby="schedule-panel-title">
+        <!-- серая полоска-ручка: подсказывает, что шторку можно тянуть пальцем -->
+        <span class="schedule-panel-grip" aria-hidden="true"></span>
         <div class="schedule-panel-head">
             <h2 id="schedule-panel-title">Расписание</h2>
             <label for="schedule-toggle" class="schedule-panel-close" aria-label="Закрыть расписание">&times;</label>
@@ -147,6 +174,12 @@
     <!-- всплывающая панель кабинета -->
     <div id="room-panel" role="dialog" aria-labelledby="room-panel-title" aria-modal="false">
         <button class="close-btn" id="room-panel-close" type="button" aria-label="Закрыть">&times;</button>
+        <!-- Кнопка «Назад» появляется только тогда, когда карточку открыли
+             из расписания и оно ради неё свернулось. Возвращает расписание
+             обратно, чтобы можно было выбрать другую пару. -->
+        <button id="room-panel-back" class="room-panel-back" type="button">
+            <span class="room-panel-back-icon" aria-hidden="true">←</span>Назад к расписанию
+        </button>
         <h2 id="room-panel-title">Кабинет</h2>
         <div id="room-panel-content"></div>
     </div>
