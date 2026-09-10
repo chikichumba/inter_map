@@ -108,10 +108,21 @@
                             <div class="spinner" role="status" aria-label="Загрузка модели"></div>
                             <p>Загружаем план этажа…</p>
                         </div>
+                        <!-- Легенда карты вызывается кнопкой. Состояние хранит
+                             скрытый чекбокс: снят — видна кнопка «Подробнее»,
+                             отмечен — вместо неё разворачивается легенда
+                             с кнопкой «Скрыть». Обе кнопки — это label
+                             одного и того же чекбокса, поэтому JS не нужен. -->
+                        <div class="legend-control">
+                            <input type="checkbox" id="legend-toggle" class="legend-toggle-input" aria-label="Показать легенду карты">
+                            <label for="legend-toggle" class="legend-btn legend-btn-show">Подробнее</label>
+                        </div>
+
                         <div id="status-legend">
                             <span class="legend-item"><span class="dot current"></span>Идёт сейчас</span>
                             <span class="legend-item"><span class="dot upcoming"></span>Предстоит</span>
                             <span class="legend-item"><span class="dot past"></span>Прошло</span>
+                            <label for="legend-toggle" class="legend-btn legend-btn-hide">Скрыть</label>
                         </div>
                         <div id="stub-overlay" role="status" aria-live="polite">
                             <video class="stub-video" src="videos/stub-floor.mp4" autoplay muted loop playsinline preload="auto" aria-hidden="true"></video>

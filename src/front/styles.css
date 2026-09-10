@@ -464,9 +464,73 @@ canvas {
 }
 
 
-/* Легенда статусов. Прижата к левому нижнему углу карты: сверху теперь
-   появляется карточка кабинета, и там ей места нет. Пункты идут столбиком —
-   так плашка узкая и на телефоне почти не отъедает места.
+/* Кнопка «Подробнее» в левом нижнем углу карты. На её месте потом
+   разворачивается легенда, поэтому координаты у них одинаковые. */
+.legend-control {
+    position: absolute;
+    bottom: var(--space-3);
+    left: var(--space-3);
+    z-index: 4;
+    display: inline-flex;
+}
+
+/* Чекбокс невидим, но лежит поверх кнопки: нажатие попадает в него,
+   и он же ловит фокус с клавиатуры. */
+.legend-toggle-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+/* Когда легенда открыта, кнопку «Подробнее» прячем, а чекбокс перестаём
+   нажимать мышью — иначе он ловил бы клики поверх самой легенды.
+   Фокус с клавиатуры при этом не теряется. */
+:root:has(#legend-toggle:checked) .legend-btn-show {
+    display: none;
+}
+
+:root:has(#legend-toggle:checked) .legend-toggle-input {
+    pointer-events: none;
+}
+
+/* Обе кнопки — «Подробнее» и «Скрыть» — выглядят одинаково
+   и повторяют оформление плашек над картой. */
+.legend-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 12px;
+    background: var(--model-chip-bg);
+    border: 1px solid var(--model-chip-border);
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--model-ink);
+    cursor: pointer;
+    user-select: none;
+    pointer-events: auto;   /* сама легенда клики пропускает, кнопка — нет */
+    transition: background var(--duration-fast) ease;
+}
+
+.legend-btn-hide {
+    align-self: stretch;
+    margin-top: var(--space-1);
+}
+
+.legend-toggle-input:focus-visible + .legend-btn,
+:root:has(#legend-toggle:focus-visible) .legend-btn-hide {
+    outline: 1.5px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
+/* Легенда статусов. Прижата к левому нижнему углу карты — на то же место,
+   где стояла кнопка «Подробнее». Показывается только когда чекбокс отмечен.
+   Пункты идут столбиком: плашка узкая и на телефоне почти не отъедает места.
    (Захотите вернуть их в строку — поменяйте flex-direction на row.) */
 #status-legend {
     position: absolute;
@@ -476,7 +540,7 @@ canvas {
     right: auto;
     transform: none;
     z-index: 4;
-    display: flex;
+    display: none;
     flex-direction: column;
     flex-wrap: nowrap;
     gap: var(--space-2);
@@ -488,6 +552,16 @@ canvas {
     color: var(--model-ink);
     pointer-events: none;
     max-width: calc(100% - var(--space-5));
+}
+
+:root:has(#legend-toggle:checked) #status-legend {
+    display: flex;
+    animation: legend-in var(--duration-base) var(--ease-drawer);
+}
+
+@keyframes legend-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 #status-legend .legend-item {
@@ -1741,6 +1815,10 @@ canvas {
    подсвеченной (а гамбургер — раскрытым) до следующего касания. Поэтому
    все они собраны здесь; :active и :focus-visible работают везде. */
 @media (hover: hover) and (pointer: fine) {
+    .legend-btn:hover {
+        background: var(--surface);
+    }
+
     .room-panel-back:hover {
         background: var(--surface-hover);
         border-color: var(--border-strong);
