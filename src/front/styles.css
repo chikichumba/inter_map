@@ -14,11 +14,11 @@
     --accent-hover: #1A1A1A;
 
     /* приглушённые статусные цвета */
-    --status-past: #C4B5AC;
+    --status-past: #ff0000;
     --status-past-bg: #F5F0EC;
-    --status-current: #A8C3B0;
+    --status-current: #00910c;
     --status-current-bg: #EDF3EE;
-    --status-upcoming: #D4C5A8;
+    --status-upcoming: #a600ff;
     --status-upcoming-bg: #F7F2E8;
 
     /* добавленные токены (сводка — в конце файла) */
@@ -158,11 +158,11 @@
     --overlay-veil: rgba(33, 36, 41, 0.95);
     --focus-ring: #C8CDD4;
     /* статусные цвета приглушены под темный фон */
-    --status-past: #8C7F77;
+    --status-past: #ff0000;
     --status-past-bg: #34302D;
-    --status-current: #7FA88C;
+    --status-current: #1ca600;
     --status-current-bg: #2A332D;
-    --status-upcoming: #B39F76;
+    --status-upcoming: #a900f7;
     --status-upcoming-bg: #34302A;
     --model-bg: #F5F2EA;
     --shadow: 0 1px 3px rgba(0,0,0,0.35);
