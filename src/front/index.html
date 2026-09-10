@@ -13,13 +13,22 @@
 </head>
 <body>
     <!-- кнопка открытия сайдбара (видна, когда сайдбар закрыт) -->
-    <button id="sidebar-toggle" aria-label="Открыть настройки" aria-expanded="false" aria-controls="sidebar">☰</button>
+    <button id="sidebar-toggle" aria-label="Открыть настройки" aria-expanded="false" aria-controls="sidebar"><span class="sidebar-toggle-icon" aria-hidden="true">☰</span><span class="sidebar-toggle-text">Настройки</span></button>
 
     <!-- сайдбар выбора группы -->
     <aside id="sidebar" aria-label="Настройки расписания">
         <h3>Настройки</h3>
 
-        <!-- блок 1: выбор группы -->
+        <!-- блок 1: период (день / неделя) -->
+        <div class="sidebar-section">
+            <span class="sidebar-section-title" id="view-switch-label">Расписание</span>
+            <div class="view-switch" role="group" aria-labelledby="view-switch-label">
+                <span class="view-switch-item is-active" aria-current="page">На день</span>
+                <button id="week-details-btn" class="sidebar-week-btn view-switch-item" type="button" aria-label="Открыть расписание на неделю">На неделю</button>
+            </div>
+        </div>
+
+        <!-- блок 2: выбор группы, под ним кнопка «Применить» -->
         <div class="sidebar-section">
             <label for="group-select">Группа</label>
             <select id="group-select">
@@ -31,15 +40,6 @@
                 <option value="Группа 6">Группа 6</option>
             </select>
             <button id="apply-group" type="button">Применить</button>
-        </div>
-
-        <!-- блок 2: переключатель периода (день / неделя) -->
-        <div class="sidebar-section">
-            <span class="sidebar-section-title" id="view-switch-label">Расписание</span>
-            <div class="view-switch" role="group" aria-labelledby="view-switch-label">
-                <span class="view-switch-item is-active" aria-current="page">На день</span>
-                <button id="week-details-btn" class="sidebar-week-btn view-switch-item" type="button" aria-label="Открыть расписание на неделю">На неделю</button>
-            </div>
         </div>
 
         <!-- блок 3: выбор даты (перенесён из-над карты) -->
@@ -61,7 +61,12 @@
             <span class="sidebar-section-title">Оформление</span>
             <label class="theme-switch" for="theme-toggle">
                 <input type="checkbox" id="theme-toggle" class="theme-switch-input" role="switch">
-                <span class="theme-switch-track" aria-hidden="true"><span class="theme-switch-thumb"></span></span>
+                <span class="theme-switch-track" aria-hidden="true">
+                    <span class="theme-switch-thumb">
+                        <span class="theme-switch-icon theme-switch-icon-moon">&#9790;</span>
+                        <span class="theme-switch-icon theme-switch-icon-sun">&#9728;</span>
+                    </span>
+                </span>
                 <span class="theme-switch-text">Тёмная тема</span>
             </label>
         </div>
@@ -71,7 +76,10 @@
             <!-- показ панели расписания: чистый CSS (чекбокс + :has), JS не нужен -->
             <div class="sidebar-action">
                 <input type="checkbox" id="schedule-toggle" class="schedule-toggle-input">
-                <label for="schedule-toggle" class="sidebar-action-btn">Показать расписание</label>
+                <label for="schedule-toggle" class="sidebar-action-btn">
+                    <span class="sidebar-action-show">Показать расписание</span>
+                    <span class="sidebar-action-hide">Скрыть расписание</span>
+                </label>
             </div>
 
             <!-- кнопка закрытия сайдбара: тот же #sidebar-close, что слушает app.js -->

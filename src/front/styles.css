@@ -1,30 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
-/* ==========================================================================
-   ТЕМЫ
-
-   Все цвета вынесены в переменные :root. Базовый набор = БЕЛАЯ тема, она же
-   тема по умолчанию. Переключение реализовано двумя совместимыми способами,
-   чтобы ничего не ломать:
-     1) :root[data-theme="white" | "dark" | "light"] — если позже понадобится
-        управлять темой из JS (одна строка: documentElement.dataset.theme);
-     2) :root:has(#theme-toggle:checked) — чистый CSS-переключатель в
-        сайдбаре, работает уже сейчас, без единой правки app.js.
-   Специфичность :has(#id) выше, чем у [data-theme], поэтому переключатель
-   всегда имеет приоритет над значением атрибута в разметке.
-
-   В тёмной теме сознательно нет чистого чёрного и чистого белого: фон —
-   мягкий сине-серый (#212429 / #2A2E34), текст — тёплый светло-серый
-   (#E4E2DE), акцент инвертируется в спокойный серый #D8D5D0 с тёмным
-   текстом на нём. Так контраст остаётся высоким, но глаз не режет.
-
-   КАРТА НЕ ЗАВИСИТ ОТ ТЕМЫ. Цвета 3D-сцены заданы в app.js хардкодом
-   (scene.background = 0xf5f2ea, COLOR_WHITE, COLOR_SELECTED, statusColors),
-   и это сохранено намеренно: --model-bg одинаков во всех темах, затемняющей
-   вуали над канвасом нет. Тема переключает только обвязку вокруг карты —
-   рамку, чипы легенды, подписи; сам план этажа выглядит одинаково.
-   ========================================================================== */
-
 :root {
     color-scheme: light;
 
@@ -161,8 +136,7 @@
     --model-bg: #F5F2EA;
 }
 
-/* тёмная тема: атрибутом data-theme="dark" или переключателем в сайдбаре.
-   Ни чистого чёрного, ни чистого белого — мягкие серые. */
+/* темная тема. */
 :root[data-theme="dark"],
 :root:has(#theme-toggle:checked) {
     color-scheme: dark;
@@ -183,7 +157,7 @@
     --overlay-bg: rgba(42, 46, 52, 0.92);
     --overlay-veil: rgba(33, 36, 41, 0.95);
     --focus-ring: #C8CDD4;
-    /* статусные цвета приглушены под тёмный фон */
+    /* статусные цвета приглушены под темный фон */
     --status-past: #8C7F77;
     --status-past-bg: #34302D;
     --status-current: #7FA88C;
@@ -232,7 +206,7 @@ a:focus-visible,
 }
 
 /* общий каркас.
-   Слева зарезервировано место под закреплённый сайдбар, поэтому карта
+   Слева зарезервировано место под закрепленный сайдбар, поэтому карта
    центрируется в оставшейся области и не уходит под панель. */
 #app-wrapper {
     display: flex;
@@ -271,8 +245,7 @@ a:focus-visible,
 }
 
 /* панель выбора даты — в сайдбаре, под переключателем «на день / на неделю».
-   Поле даты занимает всю ширину колонки (иначе нативный виджет обрезает
-   дату до одного числа), кнопки перелистывания — отдельной строкой под ним. */
+   Поле даты занимает всю ширину колонки */
 #date-panel {
     display: flex;
     flex-direction: column;
@@ -298,10 +271,6 @@ a:focus-visible,
                 background var(--duration-fast) ease;
 }
 
-#date-panel input[type="date"]:hover {
-    border-color: var(--border-strong);
-    background: var(--surface-hover);
-}
 
 /* строка кнопок перелистывания под полем даты */
 .date-nav {
@@ -309,8 +278,6 @@ a:focus-visible,
     gap: var(--space-2);
 }
 
-/* стрелки дат внутри сайдбара не должны подхватывать заливку
-   от общего правила #sidebar button — возвращаем им вид nav-btn */
 #sidebar #date-panel .nav-btn {
     flex: 1 1 0;
     width: auto;
@@ -325,11 +292,6 @@ a:focus-visible,
     font-weight: 500;
 }
 
-#sidebar #date-panel .nav-btn:hover {
-    background: var(--surface-hover);
-    border-color: var(--border-strong);
-    color: var(--ink);
-}
 
 #sidebar #date-panel .nav-btn:active {
     background: var(--surface-active);
@@ -340,8 +302,7 @@ a:focus-visible,
     line-height: 1;
 }
 
-/* иконка календаря в тёмной теме — светлая (color-scheme её уже
-   переворачивает в Chrome, для Safari/старых сборок подстрахуемся) */
+/* иконка календаря в темной теме — светлая */
 :root[data-theme="dark"] #date-panel input[type="date"]::-webkit-calendar-picker-indicator,
 :root:has(#theme-toggle:checked) #date-panel input[type="date"]::-webkit-calendar-picker-indicator {
     filter: invert(1) brightness(0.9);
@@ -365,11 +326,6 @@ a:focus-visible,
                 color var(--duration-fast) ease;
 }
 
-.nav-btn:hover {
-    background: var(--surface-hover);
-    border-color: var(--border-strong);
-    color: var(--ink);
-}
 
 .nav-btn:active {
     background: var(--surface-active);
@@ -426,10 +382,6 @@ a:focus-visible,
     user-select: none;
 }
 
-.floor-numbers span:hover {
-    background: var(--surface-hover);
-    color: var(--ink);
-}
 
 .floor-numbers span:active {
     background: var(--surface-active);
@@ -441,10 +393,6 @@ a:focus-visible,
     color: var(--on-accent);
 }
 
-.floor-numbers span.active:hover {
-    background: var(--accent-hover);
-    color: var(--on-accent);
-}
 
 /* контейнер модели */
 #model-container {
@@ -465,12 +413,6 @@ canvas {
     height: 100%;
 }
 
-/* ОГРАНИЧЕНИЕ: кабинеты — меши внутри WebGL-канваса, DOM-узлов у них нет,
-   поэтому CSS не может дать им :hover поштучно. Курсор pointer выставлен на
-   весь канвас (кликабельные объекты занимают почти всю его площадь),
-   а состояние active (подсветка выбранного кабинета) уже реализовано в
-   app.js через animateMeshColor / COLOR_SELECTED. Настоящий per-room hover
-   потребует raycast на pointermove в app.js — сюда не лезем. */
 #model-container canvas {
     cursor: pointer;
 }
@@ -595,28 +537,63 @@ canvas {
    min-width: 769px ниже), на узких экранах видна всегда. */
 #sidebar-toggle {
     position: fixed;
-    top: var(--space-2);
-    left: var(--space-2);
+    top: var(--space-3);
+    left: var(--space-3);
     z-index: 20;
     display: flex;
     align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
+    justify-content: flex-start;
+    gap: var(--space-2);
+    width: 46px;
+    height: 46px;
+    padding: 0 12px;
+    overflow: hidden;
+    white-space: nowrap;
     background: var(--surface);
-    border: 1px solid var(--border);
-    font-size: 16px;
-    cursor: pointer;
-    border-radius: var(--radius-s);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-m);
+    box-shadow: var(--shadow);
+    font-size: 20px;
+    line-height: 1;
     color: var(--ink);
-    transition: background var(--duration-fast) ease;
+    cursor: pointer;
+    transition: width var(--duration-base) var(--ease),
+                background var(--duration-base) ease,
+                border-color var(--duration-base) ease,
+                color var(--duration-base) ease;
 }
 
-#sidebar-toggle:hover { background: var(--surface-hover); }
+.sidebar-toggle-icon {
+    flex: 0 0 auto;
+    font-size: 20px;
+    line-height: 1;
+}
+
+.sidebar-toggle-text {
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity var(--duration-fast) ease;
+}
+
+/* при наведении и с клавиатуры кнопка инвертируется и разъезжается
+   в горизонтальную плашку с подписью */
+#sidebar-toggle:focus-visible {
+    width: 136px;
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+}
+
+#sidebar-toggle:focus-visible .sidebar-toggle-text {
+    opacity: 1;
+    transition-delay: 0.08s;
+}
+
+
 
 /* низ сайдбара: «Показать расписание» и «Закрыть» стоят парой, прижаты
-   к нижнему краю панели, между ними 16px (общий gap сайдбара тут не
-   действует — у футера свой) */
+   к нижнему краю панели */
 .sidebar-footer {
     margin-top: auto;
     display: flex;
@@ -624,10 +601,7 @@ canvas {
     gap: var(--space-4);
 }
 
-/* кнопка «Показать расписание» — чекбокс + label, без JS.
-   Чекбокс лежит поверх кнопки и прозрачен: клик попадает в него,
-   фокус с клавиатуры тоже, а :has(#schedule-toggle:checked) открывает
-   #schedule-panel. */
+/* кнопка «Показать расписание» — чекбокс + label */
 .sidebar-action {
     position: relative;
     display: flex;
@@ -664,9 +638,22 @@ canvas {
                 border-color var(--duration-fast) ease;
 }
 
-#sidebar .sidebar-action-btn:hover {
-    background: var(--surface-hover);
+/* надпись на кнопке меняется вместе с состоянием панели:
+   закрыта — «Показать расписание», открыта — «Скрыть расписание».
+   Скрытая половина убрана через display: none, поэтому и доступное имя
+   кнопки для скринридера всегда совпадает с видимым текстом. */
+.sidebar-action-hide {
+    display: none;
 }
+
+:root:has(#schedule-toggle:checked) .sidebar-action-show {
+    display: none;
+}
+
+:root:has(#schedule-toggle:checked) .sidebar-action-hide {
+    display: inline;
+}
+
 
 /* пока панель открыта — кнопка подсвечена как активная */
 :root:has(#schedule-toggle:checked) #sidebar .sidebar-action-btn {
@@ -679,10 +666,7 @@ canvas {
     outline-offset: 2px;
 }
 
-/* кнопка «Закрыть» — тот же #sidebar-close, который слушает app.js.
-   Прижата к низу панели (margin-top: auto), тёмная заливка в белой теме
-   и светло-серая в тёмной берётся из --accent / --on-accent, поэтому
-   инверсия происходит вместе со сменой темы. */
+/* кнопка «Закрыть» */
 #sidebar .sidebar-close-btn {
     display: block;
     margin-top: 0;
@@ -700,28 +684,8 @@ canvas {
                 border-color var(--duration-fast) ease;
 }
 
-#sidebar .sidebar-close-btn:hover {
-    background: var(--accent-hover);
-    border-color: var(--accent-hover);
-}
 
-/* сам сайдбар — закреплён в левом верхнем углу, открыт по умолчанию.
-
-   Состояние берётся из aria-hidden, который выставляет setSidebarOpen()
-   в app.js: атрибута нет — панель открыта (первая загрузка на десктопе),
-   "false" — открыта кнопкой ☰, "true" — закрыта кнопкой «Закрыть».
-   Так CSS и скринридер видят одно и то же состояние, а прежний рассинхрон
-   (видимая панель с aria-hidden="true") больше не возникает.
-
-   ПОБОЧНЫЙ ЭФФЕКТ логики app.js: applyGroupBtn после «Применить» вызывает
-   setSidebarOpen(false), то есть панель закроется и на десктопе. Если это
-   не нужно — минимальная правка в app.js: убрать эту одну строку из
-   обработчика applyGroupBtn, остальное не меняется.
-
-   Место под сайдбар в #app-wrapper зарезервировано всегда, в том числе
-   когда панель закрыта: сворачивать отступ нельзя, иначе меняется ширина
-   #model-container, а app.js при ресайзе не пересчитывает frustum
-   ортокамеры — модель растянется. */
+/* сам сайдбар — закреплён в левом верхнем углу, открыт по умолчанию. */
 #sidebar {
     position: fixed;
     top: var(--sidebar-inset);
@@ -824,7 +788,6 @@ canvas {
 
 #sidebar .sidebar-section > select { margin-bottom: 0; }
 
-#sidebar select:hover { border-color: var(--border-strong); }
 
 /* выбранная группа выделена в раскрытом списке */
 #sidebar select option:checked {
@@ -846,7 +809,6 @@ canvas {
     transition: background var(--duration-fast) ease;
 }
 
-#sidebar button:hover { background: var(--accent-hover); }
 
 #sidebar .sidebar-week-btn {
     margin-top: var(--space-3);
@@ -886,14 +848,9 @@ canvas {
                 color var(--duration-fast) ease;
 }
 
-#sidebar .view-switch-item:hover {
-    background: var(--surface-hover);
-    color: var(--ink);
-}
 
 /* активная вкладка = текущая страница */
-#sidebar .view-switch-item.is-active,
-#sidebar .view-switch-item.is-active:hover {
+#sidebar .view-switch-item.is-active {
     background: var(--surface);
     color: var(--ink);
     font-weight: 600;
@@ -921,8 +878,8 @@ canvas {
     position: absolute;
     top: 0;
     left: 0;
-    width: 36px;
-    height: 20px;
+    width: 46px;
+    height: 26px;
     margin: 0;
     opacity: 0;
     cursor: pointer;
@@ -931,25 +888,48 @@ canvas {
 .theme-switch-track {
     position: relative;
     flex: 0 0 auto;
-    width: 36px;
-    height: 20px;
+    width: 46px;
+    height: 26px;
     border-radius: 999px;
     background: var(--surface-active);
     border: 1px solid var(--border);
-    transition: background var(--duration-fast) ease,
-                border-color var(--duration-fast) ease;
+    transition: background var(--duration-base) ease,
+                border-color var(--duration-base) ease;
 }
 
+/* бегунок несёт символ текущего действия: в белой теме ☾ (включить
+   тёмную), в тёмной ☀ (вернуть светлую) */
 .theme-switch-thumb {
     position: absolute;
     top: 2px;
     left: 2px;
-    width: 14px;
-    height: 14px;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
     background: var(--surface);
     box-shadow: var(--shadow);
-    transition: transform var(--duration-fast) var(--ease);
+    transition: transform var(--duration-base) var(--ease),
+                background var(--duration-base) ease;
+}
+
+.theme-switch-icon {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    line-height: 1;
+    color: var(--ink);
+    transition: opacity var(--duration-base) var(--ease),
+                transform var(--duration-base) var(--ease);
+}
+
+/* солнце ждёт за кадром, повёрнутое — при переключении иконки
+   переезжают друг в друга поворотом с растворением */
+.theme-switch-icon-sun {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.5);
 }
 
 .theme-switch-input:checked + .theme-switch-track {
@@ -958,7 +938,17 @@ canvas {
 }
 
 .theme-switch-input:checked + .theme-switch-track .theme-switch-thumb {
-    transform: translateX(16px);
+    transform: translateX(20px);
+}
+
+.theme-switch-input:checked + .theme-switch-track .theme-switch-icon-moon {
+    opacity: 0;
+    transform: rotate(90deg) scale(0.5);
+}
+
+.theme-switch-input:checked + .theme-switch-track .theme-switch-icon-sun {
+    opacity: 1;
+    transform: rotate(0) scale(1);
 }
 
 .theme-switch-input:focus-visible + .theme-switch-track {
@@ -986,7 +976,7 @@ canvas {
     -webkit-overflow-scrolling: touch;
 }
 
-/* ОГРАНИЧЕНИЕ: карточки пар создаёт app.js как <div> без tabindex, клики
+/* карточки пар создаёт app.js как дивку без tabindex, клики
    ловит делегирование по .pair-card — с клавиатуры они недоступны, и CSS
    этого не чинит. Минимальное вмешательство: в updatePairsUI добавить
    card.tabIndex = 0 (стиль фокуса для них уже описан ниже). */
@@ -1008,11 +998,6 @@ canvas {
                 border-color var(--duration-base) ease;
 }
 
-.pair-card:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-card-hover);
-    background-color: var(--surface-hover);
-}
 
 .pair-card:active {
     transform: translateY(-1px) scale(0.98);
@@ -1111,33 +1096,8 @@ canvas {
                 color var(--duration-fast) ease;
 }
 
-.schedule-panel-close:hover {
-    background: var(--surface-hover);
-    color: var(--ink);
-}
 
-/* всплывающая панель кабинета.
-
-   ВЫБОР ВАРИАНТА: боковая панель справа, не модальное окно.
-   1) app.js закрывает её кликом вне панели и по Escape, но не ставит
-      фокус-ловушку и держит aria-modal="false" — панель по замыслу
-      немодальная, затемняющий оверлей противоречил бы этой логике;
-   2) сайдбар занимает левый край, свободное место остаётся справа —
-      панель не перекрывает ни сайдбар, ни центр карты;
-   3) карта остаётся видимой и кликабельной: можно перебирать кабинеты
-      подряд, не закрывая панель.
-   На ≤768px превращается в нижний лист (bottom sheet): по центру она
-   закрывала бы план этажа, а снизу остаётся в зоне большого пальца.
-
-   ВАЖНО про ширину: app.js при ресайзе вызывает renderer.setSize(), но не
-   пересчитывает frustum ортокамеры (camera.left/right/top/bottom заданы
-   только в fitCameraToModel), а строка controls?.handleResize() указывает
-   на несуществующий метод OrbitControls. Поэтому панель намеренно сделана
-   плавающим слоем: раскладка, «раздвигающая» #model-container при открытии,
-   каждый раз давала бы искажение пропорций модели. Плата за это — на
-   ширинах, где справа от контента нет 300px свободного места, панель
-   ложится поверх колонки этажей; она закрывается крестиком, Escape и
-   кликом вне себя, поэтому #floor-selector блокируется лишь временно. */
+/* всплывающая панель кабинета. */
 #room-panel {
     position: fixed;
     right: max(var(--space-4), var(--room-panel-right));
@@ -1190,10 +1150,6 @@ canvas {
                 color var(--duration-fast) ease;
 }
 
-#room-panel .close-btn:hover {
-    background: var(--surface-hover);
-    color: var(--ink);
-}
 
 #room-panel h2 {
     margin: 0 0 var(--space-3);
@@ -1254,8 +1210,8 @@ canvas {
         height: auto;
         min-height: 100vh;
         padding: var(--space-2);
-        /* место под кнопку-гамбургер, чтобы она не легла на панель даты */
-        padding-top: 52px;
+        /* место под кнопку-гамбургер (46px + отступ сверху) */
+        padding-top: 62px;
     }
 
     #main-container {
@@ -1414,7 +1370,7 @@ canvas {
 @media (max-width: 480px) {
     #app-wrapper {
         padding: var(--space-1);
-        padding-top: 52px;
+        padding-top: 62px;
     }
 
     /* панель даты живёт в сайдбаре (280px), ужимать её не нужно —
@@ -1489,7 +1445,12 @@ canvas {
         height: auto;
         min-height: 100vh;
         padding: var(--space-1);
-        padding-top: 48px;
+        padding-top: 56px;
+    }
+
+    #sidebar-toggle {
+        top: var(--space-1);
+        left: var(--space-1);
     }
 
     #date-panel {
@@ -1562,6 +1523,92 @@ canvas {
     }
 }
 
+/* Ховер-состояния только для мыши.
+   На тач-устройствах :hover «залипает» после тапа — кнопка осталась бы
+   подсвеченной (а гамбургер — раскрытым) до следующего касания. Поэтому
+   все они собраны здесь; :active и :focus-visible работают везде. */
+@media (hover: hover) and (pointer: fine) {
+    #date-panel input[type="date"]:hover {
+        border-color: var(--border-strong);
+        background: var(--surface-hover);
+    }
+
+    #sidebar #date-panel .nav-btn:hover {
+        background: var(--surface-hover);
+        border-color: var(--border-strong);
+        color: var(--ink);
+    }
+
+    .nav-btn:hover {
+        background: var(--surface-hover);
+        border-color: var(--border-strong);
+        color: var(--ink);
+    }
+
+    .floor-numbers span:hover {
+        background: var(--surface-hover);
+        color: var(--ink);
+    }
+
+    .floor-numbers span.active:hover {
+        background: var(--accent-hover);
+        color: var(--on-accent);
+    }
+
+    #sidebar-toggle:hover {
+        width: 136px;
+        background: var(--accent);
+        border-color: var(--accent);
+        color: var(--on-accent);
+    }
+
+    #sidebar-toggle:hover .sidebar-toggle-text {
+        opacity: 1;
+        transition-delay: 0.08s;
+    }
+
+    #sidebar .sidebar-action-btn:hover {    background: var(--surface-hover);}
+
+    #sidebar .sidebar-close-btn:hover {
+        background: var(--accent-hover);
+        border-color: var(--accent-hover);
+    }
+
+    #sidebar select:hover { border-color: var(--border-strong); }
+
+    #sidebar button:hover { background: var(--accent-hover); }
+
+    #sidebar .view-switch-item:hover {
+        background: var(--surface-hover);
+        color: var(--ink);
+    }
+
+    #sidebar .view-switch-item.is-active:hover {
+        background: var(--surface);
+        color: var(--ink);
+        font-weight: 600;
+        box-shadow: var(--shadow);
+        cursor: default;
+    }
+
+    .pair-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-card-hover);
+        background-color: var(--surface-hover);
+    }
+
+    .schedule-panel-close:hover {
+        background: var(--surface-hover);
+        color: var(--ink);
+    }
+
+    #room-panel .close-btn:hover {
+        background: var(--surface-hover);
+        color: var(--ink);
+    }
+
+}
+
 /* уважение к системной настройке «меньше движения» */
 @media (prefers-reduced-motion: reduce) {
     :root {
@@ -1588,28 +1635,3 @@ canvas {
         transform: none;
     }
 }
-
-/* ==========================================================================
-   ДОБАВЛЕННЫЕ ТОКЕНЫ И КЛАССЫ (существующие имена не менялись)
-   переменные: --surface-hover, --surface-active, --border-strong,
-               --accent-soft, --on-accent, --overlay-bg, --overlay-veil,
-               --focus-ring, --shadow, --shadow-card-hover, --shadow-panel,
-               --duration-fast, --duration-base, --ease,
-               --sidebar-width, --sidebar-inset, --content-max,
-               --floor-column-width, --room-panel-right
-   карта (одинакова во всех темах): --model-bg, --model-chip-bg,
-               --model-chip-border, --model-ink, --model-stub-bg
-   темы:       :root (белая, по умолчанию), [data-theme="white"],
-               [data-theme="light"] (прежняя тёплая), [data-theme="dark"]
-               и тот же тёмный набор через :has(#theme-toggle:checked)
-   классы/id:  .sidebar-section, .sidebar-section-title, .view-switch,
-               .view-switch-item, .is-active, .theme-switch,
-               .theme-switch-input, .theme-switch-track, .theme-switch-thumb,
-               .theme-switch-text, #theme-toggle, #date-panel-label,
-               .date-nav, .nav-btn-arrow, .floor-selector-title,
-               .sidebar-footer, .sidebar-action, .sidebar-action-btn,
-               #schedule-toggle,
-               .schedule-toggle-input, #schedule-panel,
-               .schedule-panel-head, #schedule-panel-title,
-               .schedule-panel-close
-   ========================================================================== */
