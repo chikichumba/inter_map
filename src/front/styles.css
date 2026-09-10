@@ -30,6 +30,11 @@
     --overlay-bg: rgba(255, 255, 255, 0.94);
     --overlay-veil: rgba(255, 255, 255, 0.95);
     --focus-ring: #1A1A1A;
+    /* Красная кнопка «Закрыть». Сам красный одинаков во всех темах,
+       а цвет надписи на нём меняется — см. блоки тем ниже. */
+    --danger: #D93A3A;
+    --danger-hover: #C22F2F;
+    --on-danger: #FFFFFF;
     /* фон сцены продублирован из app.js, чтобы фон канваса и фон
        страницы не расходились при смене темы */
     --model-bg: #F5F2EA;
@@ -111,6 +116,9 @@
     --overlay-bg: rgba(255, 255, 255, 0.94);
     --overlay-veil: rgba(255, 255, 255, 0.95);
     --focus-ring: #1A1A1A;
+    --danger: #D93A3A;
+    --danger-hover: #C22F2F;
+    --on-danger: #FFFFFF;
     --status-past-bg: #F4F1EF;
     --status-current-bg: #ECF3EE;
     --status-upcoming-bg: #F6F2E9;
@@ -136,6 +144,9 @@
     --overlay-bg: rgba(255, 255, 255, 0.92);
     --overlay-veil: rgba(250, 250, 248, 0.95);
     --focus-ring: #1A1A1A;
+    --danger: #D93A3A;
+    --danger-hover: #C22F2F;
+    --on-danger: #FFFFFF;
     --model-bg: #F5F2EA;
 }
 
@@ -160,6 +171,13 @@
     --overlay-bg: rgba(42, 46, 52, 0.92);
     --overlay-veil: rgba(33, 36, 41, 0.95);
     --focus-ring: #C8CDD4;
+    /* Красный чуть светлее, чем в светлых темах: на тёмном фоне
+       глубокий красный выглядит грязным пятном. Надпись на нём тёмная —
+       так она не слепит и заметно отличается от белой в светлой теме.
+       Контраст надписи к фону кнопки 5.46 — норма WCAG AA пройдена. */
+    --danger: #E85C5C;
+    --danger-hover: #F07070;
+    --on-danger: #1B0F0E;
     /* статусные цвета приглушены под темный фон */
     --status-past: #ff0000;
     --status-past-bg: #34302D;
@@ -433,22 +451,6 @@ canvas {
 }
 
 
-/* информационные блоки поверх модели */
-#click-info {
-    position: absolute;
-    bottom: var(--space-3);
-    left: var(--space-3);
-    z-index: 4;
-    background: var(--model-chip-bg);
-    padding: 5px 10px;
-    border-radius: var(--radius-s);
-    pointer-events: none;
-    font-size: 12px;
-    color: var(--model-ink);
-    border: 1px solid var(--model-chip-border);
-    max-width: calc(100% - var(--space-5));
-}
-
 #status-legend {
     position: absolute;
     top: var(--space-3);
@@ -692,14 +694,17 @@ canvas {
 }
 
 /* кнопка «Закрыть» */
+/* «Закрыть» выделена красным во всех темах: это единственное действие
+   в сайдбаре, которое убирает панель с экрана. Цвет надписи берётся из
+   --on-danger и отличается по темам: в светлых белый, в тёмной тёмный. */
 #sidebar .sidebar-close-btn {
     display: block;
     margin-top: 0;
     width: 100%;
     padding: 10px;
-    background: var(--accent);
-    color: var(--on-accent);
-    border: 1px solid var(--accent);
+    background: var(--danger);
+    color: var(--on-danger);
+    border: 1px solid var(--danger);
     border-radius: var(--radius-s);
     font-size: 13px;
     font-weight: 500;
@@ -1744,8 +1749,8 @@ canvas {
     #sidebar .sidebar-action-btn:hover {    background: var(--surface-hover);}
 
     #sidebar .sidebar-close-btn:hover {
-        background: var(--accent-hover);
-        border-color: var(--accent-hover);
+        background: var(--danger-hover);
+        border-color: var(--danger-hover);
     }
 
     #sidebar select:hover { border-color: var(--border-strong); }

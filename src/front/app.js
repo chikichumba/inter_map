@@ -68,7 +68,6 @@ let scheduleCollapsedForRoom = false;
 // ссылки на dom-элементы
 const container = document.getElementById('model-container');
 const modelLoading = document.getElementById('model-loading');
-const clickInfoDiv = document.getElementById('click-info');
 const sidebarToggle = document.getElementById('sidebar-toggle');
 const sidebar = document.getElementById('sidebar');
 const groupSelect = document.getElementById('group-select');
@@ -322,7 +321,6 @@ function highlightRoomByRoomId(roomId) {
     const mesh = roomMeshes.find((m) => m.userData.roomNumber === roomId);
     if (!mesh || !mesh.userData.showPanel) {
         hideRoomPanel();
-        clickInfoDiv.textContent = 'Клик: объект без информации';
         return;
     }
 
@@ -337,7 +335,6 @@ function highlightRoomByRoomId(roomId) {
         selectedMesh = mesh;
     }
 
-    clickInfoDiv.textContent = `Клик: ${mesh.userData.roomName}`;
     showRoomPanel(mesh.userData.roomNumber || '', mesh.userData.roomName);
 }
 
@@ -473,7 +470,6 @@ function handleClick(event) {
 
     if (intersects.length === 0) {
         hideRoomPanel();
-        clickInfoDiv.textContent = 'Кликните по объекту';
         return;
     }
 
@@ -484,16 +480,13 @@ function handleClick(event) {
         const status = mesh.userData.pairStatus;
         if (status && status !== 'past') animateMeshColor(mesh, getStatusColor(status, 'bright'));
         activeHighlightedMesh = mesh;
-        clickInfoDiv.textContent = `Клик: ${userData.roomName}`;
         showRoomPanel(userData.roomNumber, userData.roomName);
     } else if (userData.showPanel) {
         animateMeshColor(mesh, COLOR_SELECTED);
         selectedMesh = mesh;
-        clickInfoDiv.textContent = `Клик: ${userData.roomName}`;
         showRoomPanel(userData.roomNumber || '', userData.roomName);
     } else {
         hideRoomPanel();
-        clickInfoDiv.textContent = `Клик: ${userData.roomName || 'Объект'} (без информации)`;
     }
 }
 
