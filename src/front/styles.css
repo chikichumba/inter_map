@@ -614,6 +614,16 @@ canvas {
 
 #sidebar-toggle:hover { background: var(--surface-hover); }
 
+/* низ сайдбара: «Показать расписание» и «Закрыть» стоят парой, прижаты
+   к нижнему краю панели, между ними 16px (общий gap сайдбара тут не
+   действует — у футера свой) */
+.sidebar-footer {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
 /* кнопка «Показать расписание» — чекбокс + label, без JS.
    Чекбокс лежит поверх кнопки и прозрачен: клик попадает в него,
    фокус с клавиатуры тоже, а :has(#schedule-toggle:checked) открывает
@@ -675,7 +685,7 @@ canvas {
    инверсия происходит вместе со сменой темы. */
 #sidebar .sidebar-close-btn {
     display: block;
-    margin-top: auto;
+    margin-top: 0;
     width: 100%;
     padding: 10px;
     background: var(--accent);
@@ -1327,10 +1337,17 @@ canvas {
         display: flex;
     }
 
-    /* кнопка «Закрыть» на мобильных не прижимается к низу: панель
-       скроллится, и кнопка должна оставаться сразу под настройками */
-    #sidebar .sidebar-close-btn {
+    /* на мобильных панель скроллится, поэтому пару кнопок не прижимаем
+       к низу — она идёт сразу под настройками */
+    .sidebar-footer {
         margin-top: var(--space-2);
+    }
+
+    #sidebar .sidebar-close-btn {
+        padding: 12px;
+    }
+
+    #sidebar .sidebar-action-btn {
         padding: 12px;
     }
 
@@ -1590,7 +1607,8 @@ canvas {
                .theme-switch-input, .theme-switch-track, .theme-switch-thumb,
                .theme-switch-text, #theme-toggle, #date-panel-label,
                .date-nav, .nav-btn-arrow, .floor-selector-title,
-               .sidebar-action, .sidebar-action-btn, #schedule-toggle,
+               .sidebar-footer, .sidebar-action, .sidebar-action-btn,
+               #schedule-toggle,
                .schedule-toggle-input, #schedule-panel,
                .schedule-panel-head, #schedule-panel-title,
                .schedule-panel-close

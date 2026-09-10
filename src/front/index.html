@@ -66,14 +66,17 @@
             </label>
         </div>
 
-        <!-- показ панели расписания: чистый CSS (чекбокс + :has), JS не нужен -->
-        <div class="sidebar-action">
-            <input type="checkbox" id="schedule-toggle" class="schedule-toggle-input">
-            <label for="schedule-toggle" class="sidebar-action-btn">Показать расписание</label>
-        </div>
+        <!-- две кнопки внизу панели, вплотную друг к другу -->
+        <div class="sidebar-footer">
+            <!-- показ панели расписания: чистый CSS (чекбокс + :has), JS не нужен -->
+            <div class="sidebar-action">
+                <input type="checkbox" id="schedule-toggle" class="schedule-toggle-input">
+                <label for="schedule-toggle" class="sidebar-action-btn">Показать расписание</label>
+            </div>
 
-        <!-- кнопка закрытия сайдбара: тот же #sidebar-close, что слушает app.js -->
-        <button id="sidebar-close" class="sidebar-close-btn" type="button" aria-label="Закрыть меню">Закрыть</button>
+            <!-- кнопка закрытия сайдбара: тот же #sidebar-close, что слушает app.js -->
+            <button id="sidebar-close" class="sidebar-close-btn" type="button" aria-label="Закрыть меню">Закрыть</button>
+        </div>
     </aside>
 
     <!-- основной контент -->
