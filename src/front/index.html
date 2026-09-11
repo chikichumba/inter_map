@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    
     <!-- кнопка открытия сайдбара (видна, когда сайдбар закрыт) -->
     <button id="sidebar-toggle" aria-label="Открыть настройки" aria-expanded="false" aria-controls="sidebar"><span class="sidebar-toggle-icon" aria-hidden="true">☰</span><span class="sidebar-toggle-text">Настройки</span></button>
 
@@ -28,18 +29,34 @@
             </div>
         </div>
 
-        <!-- Блок 2: выбор группы. Отдельной кнопки «Применить» нет —
-             группа применяется сама, когда открываешь расписание. -->
-        <div class="sidebar-section">
-            <label for="group-select">Группа</label>
-            <select id="group-select">
-                <option value="Группа 1">Группа 1</option>
-                <option value="Группа 2">Группа 2</option>
-                <option value="Группа 3">Группа 3</option>
-                <option value="Группа 4">Группа 4</option>
-                <option value="Группа 5">Группа 5</option>
-                <option value="Группа 6">Группа 6</option>
-            </select>
+        <!-- Блок 2: выбор группы в два шага — направление, затем группа.
+             Выбор сохраняется в браузере, при следующем заходе показывается
+             только выбранная группа. Три состояния ниже переключает app.js. -->
+        <div class="sidebar-section" id="group-picker">
+            <span class="sidebar-section-title">Группа</span>
+
+            <!-- состояние 1: группа ещё не выбрана -->
+            <button id="group-pick-btn" class="group-pick-btn" type="button">Выбрать группу</button>
+
+            <!-- состояние 2: идёт выбор -->
+            <div id="group-picker-panel" class="group-picker-panel" hidden>
+                <label class="group-picker-label" for="direction-select">Выберите направление</label>
+                <select id="direction-select">
+                    <option value="">Не выбрано</option>
+                </select>
+                <!-- кнопки групп рисует app.js по выбранному направлению -->
+                <div id="group-list" class="group-list"></div>
+            </div>
+
+            <!-- состояние 3: группа выбрана -->
+            <div id="group-current" class="group-current" hidden>
+                <span id="group-current-name" class="group-current-name"></span>
+                <button id="group-change-btn" class="group-change-btn" type="button">Изменить</button>
+            </div>
+
+            <!-- Прежний список остаётся ради app.js: он читает отсюда
+                 выбранную группу. Скрыт, наполняется из каталога. -->
+            <select id="group-select" class="visually-hidden" tabindex="-1" aria-hidden="true"></select>
         </div>
 
         <!-- блок 3: выбор даты (перенесён из-над карты) -->
