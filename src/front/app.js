@@ -672,11 +672,20 @@ floorNumbers.forEach((span) => {
 
 setFloor(currentFloor);
 
-// переход на страницу недельного расписания
-weekDetailsBtn.addEventListener('click', () => {
-    const params = new URLSearchParams({ group: currentGroup || '', floor: currentFloor });
-    window.location.href = `${WEEK_SCHEDULE_PAGE_URL}?${params.toString()}`;
-});
+// Переход на страницу недельного расписания.
+//
+// Кнопка «На неделю» сейчас закомментирована в разметке, поэтому
+// getElementById вернул null. Раньше на этом месте скрипт обрывался
+// и переставало работать всё, что регистрируется ниже: закрытие
+// сайдбара, свайпы, сброс вида, применение группы. Проверка ниже
+// делает обработчик необязательным — вернёте кнопку в index.html,
+// и переход заработает сам, без правок здесь.
+if (weekDetailsBtn) {
+    weekDetailsBtn.addEventListener('click', () => {
+        const params = new URLSearchParams({ group: currentGroup || '', floor: currentFloor });
+        window.location.href = `${WEEK_SCHEDULE_PAGE_URL}?${params.toString()}`;
+    });
+}
 
 // основной цикл анимации
 function animate() {
