@@ -39,25 +39,24 @@
             <button id="group-pick-btn" class="group-pick-btn" type="button">Выбрать группу</button>
 
 
-            <!-- состояние 2: идёт выбор. Кнопка внизу остаётся неактивной,
-                 пока в списке не отмечена группа. -->
+            <!-- Состояние 2: выбор. Сначала направление, затем группа —
+                 оба обычные селекторы. Кнопка внизу неактивна, пока группа
+                 не выбрана. -->
             <div id="group-picker-panel" class="group-picker-panel" hidden>
-                <label class="group-picker-label" for="direction-select">Выберите направление</label>
+                <label class="group-picker-label" for="direction-select">Направление</label>
                 <select id="direction-select">
                     <option value="">Не выбрано</option>
                 </select>
 
-                <input type="search" id="group-search" class="group-search" placeholder="Поиск группы" autocomplete="off" hidden>
-
-                <!-- кнопки групп рисует app.js по выбранному направлению -->
-                <div id="group-list" class="group-list"></div>
+                <label class="group-picker-label" for="group-select">Группа</label>
+                <!-- Тот же #group-select, из которого расписание берёт группу.
+                     Наполняется группами выбранного направления. -->
+                <select id="group-select" disabled>
+                    <option value="">Сначала выберите направление</option>
+                </select>
 
                 <button id="group-confirm-btn" class="group-confirm-btn" type="button" disabled>Выбрать группу</button>
             </div>
-
-            <!-- Подсказки видны во всех состояниях: и когда список ещё
-                 грузится, и когда api недоступен. -->
-            <p id="group-status" class="group-status" role="status" aria-live="polite"></p>
 
             <!-- состояние 3: группа выбрана -->
             <div id="group-current" class="group-current" hidden>
@@ -65,9 +64,9 @@
                 <button id="group-change-btn" class="group-change-btn" type="button">Изменить группу</button>
             </div>
 
-            <!-- Прежний список остаётся ради app.js: он читает отсюда
-                 выбранную группу. Скрыт, наполняется из каталога. -->
-            <select id="group-select" class="visually-hidden" tabindex="-1" aria-hidden="true"></select>
+            <!-- Подсказки видны во всех состояниях: и когда список ещё
+                 грузится, и когда api недоступен. -->
+            <p id="group-status" class="group-status" role="status" aria-live="polite"></p>
         </div>
 
         <!-- блок 3: выбор даты (перенесён из-над карты) -->

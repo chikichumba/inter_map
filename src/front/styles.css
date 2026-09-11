@@ -206,6 +206,13 @@
     box-sizing: border-box;
 }
 
+/* Атрибут hidden должен побеждать наши display: flex и display: block.
+   Без этого правила скрытые блоки остаются на экране — так на сайте
+   одновременно показывались обе кнопки «Выбрать группу». */
+[hidden] {
+    display: none !important;
+}
+
 body {
     height: 100vh;
     height: 100dvh;
@@ -1010,46 +1017,6 @@ canvas {
     color: var(--ink-secondary);
 }
 
-.group-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-    max-height: 180px;
-    overflow-y: auto;
-}
-
-#sidebar .group-list-item {
-    width: 100%;
-    padding: 9px 10px;
-    background: var(--surface);
-    color: var(--ink);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-s);
-    font-size: 13px;
-    font-weight: 500;
-    text-align: left;
-    cursor: pointer;
-    transition: background var(--duration-fast) ease,
-                border-color var(--duration-fast) ease;
-}
-
-/* Поиск по группам. Появляется после выбора направления: групп может
-   быть много, на телефоне листать их неудобно. */
-.group-search {
-    width: 100%;
-    padding: 10px 12px;
-    background: var(--surface);
-    color: var(--ink);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-s);
-    font-size: 14px;
-    font-family: inherit;
-}
-
-.group-search:hover {
-    border-color: var(--border-strong);
-}
-
 /* подсказка под списком: загрузка, ошибка, «ничего не нашлось» */
 .group-status {
     margin: 0;
@@ -1064,13 +1031,6 @@ canvas {
 
 .group-status.is-error {
     color: var(--danger);
-}
-
-/* отмеченная, но ещё не подтверждённая группа */
-#sidebar .group-list-item.is-selected {
-    background: var(--accent-soft);
-    border-color: var(--accent);
-    color: var(--ink);
 }
 
 /* подтверждение выбора */
@@ -1790,15 +1750,10 @@ canvas {
 
     /* Выбор группы на телефоне: крупные цели под палец, список выше,
        потому что экран длинный, а сайдбар всё равно скроллится. */
-    #sidebar .group-list-item {
+    /* селекторы под палец */
+    #sidebar .group-picker-panel select {
         min-height: 44px;
-        padding: 11px 12px;
         font-size: 14px;
-    }
-
-    .group-list {
-        max-height: 45vh;
-        gap: var(--space-2);
     }
 
     #sidebar .group-pick-btn,
@@ -2033,14 +1988,6 @@ canvas {
         background: var(--accent-hover);
     }
 
-    .group-search:hover {
-        border-color: var(--border-strong);
-    }
-
-    #sidebar .group-list-item:hover {
-        background: var(--surface-hover);
-        border-color: var(--border-strong);
-    }
 
     #sidebar .group-change-btn:hover {
         background: var(--surface);

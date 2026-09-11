@@ -21,14 +21,23 @@ const FIXED_AZIMUTH = 0;
 const FIXED_POLAR = 0.9472;
 
 // Настройки api. заменить ссылку на норм https, на сервере нужно разрешить домен сайта в ALLOWED_ORIGINS (cors)
-const API_BASE_URL = 'http://localhost:8080';
+// Локально работаем с сервером на своей машине, на боевом сайте —
+// с публичным адресом. Второй нужно подставить: он должен быть на https,
+// иначе браузер заблокирует запрос со страницы, открытой по https.
+// Боевой адрес: сюда впишется https-адрес api, когда он появится.
+const API_PRODUCTION_URL = 'https://ЗАМЕНИТЬ-НА-АДРЕС-API';
+// Адрес для разработки: сервис поднят на соседней машине и виден
+// через Radmin VPN. Поменяйте, если сервис переедет.
+const API_DEV_URL = 'http://26.70.191.230:8080';
+const isLocalHost = ['localhost', '127.0.0.1'].includes(location.hostname);
+const API_BASE_URL = isLocalHost ? API_DEV_URL : API_PRODUCTION_URL;
 const LESSONS_ENDPOINT = '/api/lessons';
 const WEEK_SCHEDULE_PAGE_URL = 'week_schedule.html';
 
-// сколько уроков тянем, когда собираем список групп
+// Сколько уроков тянем, когда собираем список групп. Отдельного
+// эндпоинта для групп у api нет, поэтому берём широкую выборку уроков
+// без фильтра по датам: расписание в базе может быть за любую неделю.
 const GROUPS_SCAN_LIMIT = 2000;
-// на сколько дней вперёд смотрим в поисках групп
-const GROUPS_SCAN_DAYS = 30;
 
 // описание кабинетов по идентификаторам в модели
 const roomConfig = {
@@ -327,6 +336,33 @@ function parseDateString(value) {
 }
 
 // запрос расписания с сервера
+// Запрос к api с ограничением по времени.
+//
+// Без таймаута повисший запрос молчит бесконечно, и на экране навсегда
+// остаётся «Загружаем…». AbortController обрывает его через заданное
+// число секунд, а текст ошибки потом показывается пользователю.
+const API_TIMEOUT_MS = 15000;
+
+async function fetchFromApi(path, params) {
+    const url = `${API_BASE_URL}${path}?${params}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
+    try {
+        const response = await fetch(url, { signal: controller.signal });
+        if (!response.ok) throw new Error(`сервер ответил ${response.status}`);
+        return await response.json();
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            throw new Error(`нет ответа за ${API_TIMEOUT_MS / 1000} с (${url})`);
+        }
+        // сюда попадают обрыв связи и блокировка ответа по cors
+        throw new Error(`${error.message} (${url})`);
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 function trimSeconds(time) {
     return (time || '').slice(0, 5);
 }
@@ -342,20 +378,26 @@ function lessonToPair(lesson) {
 }
 
 // запрос расписания за один день. ошибку показывается
+// Запрос расписания за один день.
+//
+// Фильтр по группе делаем на клиенте, а не параметром запроса. Причина:
+// в одном уроке поле group содержит несколько групп через запятую, и
+// серверный фильтр сравнивает строку целиком — по названию одной группы
+// он ничего не находит. Заодно это защищает от ложных совпадений вроде
+// «01-23.Д.ОФ.9» внутри «01-23.Д.ОФ.99».
 async function fetchSchedule(group, dateStr = currentDate) {
     if (!FLOOR_MODELS[currentFloor]) return [];
 
     const params = new URLSearchParams({
-        group,
         date_from: dateStr,
-        date_to: dateStr
+        date_to: dateStr,
+        limit: String(GROUPS_SCAN_LIMIT)
     });
 
-    const response = await fetch(`${API_BASE_URL}${LESSONS_ENDPOINT}?${params}`);
-    if (!response.ok) throw new Error(`Ошибка HTTP: ${response.status}`);
-
-    const lessons = await response.json();
-    return lessons.map(lessonToPair);
+    const lessons = await fetchFromApi(LESSONS_ENDPOINT, params);
+    return lessons
+        .filter((lesson) => splitGroupField(lesson.group).includes(group))
+        .map(lessonToPair);
 }
 
 // определение статуса пары (прошла, идёт, предстоит)
@@ -482,7 +524,7 @@ async function applyGroup(selectedGroup) {
     } catch (error) {
         console.error('Не удалось загрузить расписание:', error);
         currentSchedule = [];
-        showPairsMessage('Не удалось загрузить расписание. Проверьте связь и попробуйте ещё раз.', true);
+        showPairsMessage(`Не удалось загрузить расписание: ${error.message}`, true);
         highlightRoomsForSchedule([]);
     }
 }
@@ -1073,16 +1115,11 @@ const GROUP_STORAGE_KEY = 'intermap.selectedGroup';
 const groupPickBtn = document.getElementById('group-pick-btn');
 const groupPickerPanel = document.getElementById('group-picker-panel');
 const directionSelect = document.getElementById('direction-select');
-const groupSearch = document.getElementById('group-search');
-const groupList = document.getElementById('group-list');
 const groupStatus = document.getElementById('group-status');
 const groupConfirmBtn = document.getElementById('group-confirm-btn');
 const groupCurrent = document.getElementById('group-current');
 const groupCurrentName = document.getElementById('group-current-name');
 const groupChangeBtn = document.getElementById('group-change-btn');
-
-// группа, отмеченная в списке, но ещё не подтверждённая кнопкой
-let pendingGroup = null;
 
 // три состояния блока: 'empty' — кнопка, 'picking' — выбор, 'chosen' — готово
 function showGroupState(state) {
@@ -1097,97 +1134,85 @@ function setGroupStatus(text, isError = false) {
 }
 
 // группы из api: тянем уроки ближайших недель и собираем уникальные названия
-async function loadGroupCatalog() {
-    const from = new Date();
-    const to = new Date();
-    to.setDate(to.getDate() + GROUPS_SCAN_DAYS);
-
-    const params = new URLSearchParams({
-        date_from: getDateString(from),
-        date_to: getDateString(to),
-        limit: String(GROUPS_SCAN_LIMIT)
-    });
-
-    const response = await fetch(`${API_BASE_URL}${LESSONS_ENDPOINT}?${params}`);
-    if (!response.ok) throw new Error(`Ошибка HTTP: ${response.status}`);
-
-    const lessons = await response.json();
-    const names = [...new Set(lessons.map((lesson) => lesson.group).filter(Boolean))];
-    names.sort((a, b) => a.localeCompare(b, 'ru'));
-
-    // направление — буквенный префикс названия группы, до цифр и дефиса
-    const byDirection = new Map();
-    names.forEach((name) => {
-        const match = name.match(/^[^\d-]+/);
-        const prefix = (match ? match[0].trim() : '') || 'Прочие';
-        if (!byDirection.has(prefix)) byDirection.set(prefix, []);
-        byDirection.get(prefix).push(name);
-    });
-
-    return [...byDirection.entries()].map(([title, groups]) => ({ id: title, title, groups }));
+// В поле group приходит сразу несколько групп: через запятую или пробел
+// («01-25.Р.ОФ.9 01-26.Р.ОФ.11»). Разбираем на отдельные названия.
+function splitGroupField(value) {
+    return (value || '')
+        .split(/[,\s]+/)
+        // в данных попадаются названия с точкой с запятой на конце —
+        // без чистки одна и та же группа попадала бы в список дважды
+        .map((name) => name.trim().replace(/^[;.]+|[;.]+$/g, ''))
+        .filter(Boolean);
 }
 
-// заполняем селектор направлений и скрытый список групп для расписания
-function fillGroupControls() {
+// Направление — вторая часть названия между точками:
+// «01-23.ИСИП.ОФ.9» -> «ИСИП». Регистр приводим к верхнему, потому что
+// в данных встречаются и «ИСИП», и «ИСиП».
+function directionOf(groupName) {
+    const parts = groupName.split('.');
+    const code = (parts[1] || parts[0] || '').trim();
+    return code ? code.toUpperCase() : 'Прочие';
+}
+
+async function loadGroupCatalog() {
+    const params = new URLSearchParams({ limit: String(GROUPS_SCAN_LIMIT) });
+    const lessons = await fetchFromApi(LESSONS_ENDPOINT, params);
+
+    const names = new Set();
+    lessons.forEach((lesson) => {
+        splitGroupField(lesson.group).forEach((name) => names.add(name));
+    });
+
+    const byDirection = new Map();
+    [...names].sort((a, b) => a.localeCompare(b, 'ru')).forEach((name) => {
+        const code = directionOf(name);
+        if (!byDirection.has(code)) byDirection.set(code, []);
+        byDirection.get(code).push(name);
+    });
+
+    return [...byDirection.entries()]
+        .sort((a, b) => a[0].localeCompare(b[0], 'ru'))
+        .map(([title, groups]) => ({ id: title, title, groups }));
+}
+
+// заполняем селектор направлений
+function fillDirections() {
     directionSelect.length = 1;
-    groupSelect.innerHTML = '';
 
     groupCatalog.forEach((direction) => {
         const option = document.createElement('option');
         option.value = direction.id;
         option.textContent = direction.title;
         directionSelect.appendChild(option);
+    });
+}
 
+// группы выбранного направления во втором селекторе
+function fillGroups(directionId) {
+    const direction = groupCatalog.find((item) => item.id === directionId);
+
+    groupSelect.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = direction ? 'Выберите группу' : 'Сначала выберите направление';
+    groupSelect.appendChild(placeholder);
+
+    if (direction) {
         direction.groups.forEach((name) => {
-            const groupOption = document.createElement('option');
-            groupOption.value = name;
-            groupOption.textContent = name;
-            groupSelect.appendChild(groupOption);
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            groupSelect.appendChild(option);
         });
-    });
-}
-
-// кнопки групп выбранного направления, с учётом строки поиска
-function renderGroupList() {
-    groupList.innerHTML = '';
-
-    const direction = groupCatalog.find((item) => item.id === directionSelect.value);
-    if (!direction) {
-        setGroupStatus('Сначала выберите направление');
-        return;
     }
 
-    const query = groupSearch.value.trim().toLowerCase();
-    const names = direction.groups.filter((name) => name.toLowerCase().includes(query));
-
-    if (names.length === 0) {
-        setGroupStatus('Ничего не нашлось');
-        return;
-    }
-
-    setGroupStatus('');
-    names.forEach((name) => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'group-list-item';
-        button.textContent = name;
-        button.setAttribute('aria-pressed', String(name === pendingGroup));
-        button.classList.toggle('is-selected', name === pendingGroup);
-        button.addEventListener('click', () => markGroup(name));
-        groupList.appendChild(button);
-    });
-}
-
-// отметить группу в списке — кнопка подтверждения становится активной
-function markGroup(name) {
-    pendingGroup = name;
-    groupConfirmBtn.disabled = false;
-    renderGroupList();
+    groupSelect.disabled = !direction;
+    groupConfirmBtn.disabled = true;
+    setGroupStatus(direction ? `Групп в направлении: ${direction.groups.length}` : 'Сначала выберите направление');
 }
 
 // подтверждение: сохраняем выбор и показываем только выбранную группу
 function confirmGroup(name) {
-    groupSelect.value = name;
     groupCurrentName.textContent = name;
     try {
         localStorage.setItem(GROUP_STORAGE_KEY, name);
@@ -1202,23 +1227,29 @@ function confirmGroup(name) {
 groupPickBtn.addEventListener('click', () => showGroupState('picking'));
 
 groupChangeBtn.addEventListener('click', () => {
-    // при повторном заходе список открывается на текущей группе
-    pendingGroup = groupSelect.value || null;
-    groupConfirmBtn.disabled = !pendingGroup;
-    renderGroupList();
+    // открываем список на текущем выборе: направление подставляем по группе
+    const current = groupCurrentName.textContent;
+    const direction = groupCatalog.find((item) => item.groups.includes(current));
+
+    directionSelect.value = direction ? direction.id : '';
+    fillGroups(directionSelect.value);
+    if (direction) {
+        groupSelect.value = current;
+        groupConfirmBtn.disabled = false;
+    }
+
     showGroupState('picking');
 });
 
-directionSelect.addEventListener('change', () => {
-    groupSearch.hidden = !directionSelect.value;
-    groupSearch.value = '';
-    renderGroupList();
+directionSelect.addEventListener('change', () => fillGroups(directionSelect.value));
+
+// кнопка оживает, только когда в селекторе выбрана группа
+groupSelect.addEventListener('change', () => {
+    groupConfirmBtn.disabled = !groupSelect.value;
 });
 
-groupSearch.addEventListener('input', renderGroupList);
-
 groupConfirmBtn.addEventListener('click', () => {
-    if (pendingGroup) confirmGroup(pendingGroup);
+    if (groupSelect.value) confirmGroup(groupSelect.value);
 });
 
 // стартовая загрузка каталога
@@ -1229,12 +1260,12 @@ groupConfirmBtn.addEventListener('click', () => {
 
     try {
         groupCatalog = await loadGroupCatalog();
-        fillGroupControls();
+        fillDirections();
         groupPickBtn.disabled = false;
         setGroupStatus(groupCatalog.length ? 'Сначала выберите направление' : 'Список групп пуст');
     } catch (error) {
         console.error('Не удалось загрузить список групп:', error);
-        setGroupStatus('Не удалось загрузить список групп. Проверьте связь и обновите страницу.', true);
+        setGroupStatus(`Не удалось загрузить список групп: ${error.message}`, true);
         return;
     }
 
@@ -1247,8 +1278,11 @@ groupConfirmBtn.addEventListener('click', () => {
     }
 
     // группа могла исчезнуть из расписания — тогда начинаем с чистого листа
-    if (savedGroup && groupCatalog.some((direction) => direction.groups.includes(savedGroup))) {
-        pendingGroup = savedGroup;
+    const savedDirection = groupCatalog.find((direction) => direction.groups.includes(savedGroup));
+    if (savedDirection) {
+        directionSelect.value = savedDirection.id;
+        fillGroups(savedDirection.id);
+        groupSelect.value = savedGroup;
         confirmGroup(savedGroup);
     }
 })();
