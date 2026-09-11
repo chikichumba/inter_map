@@ -971,7 +971,17 @@ canvas {
     white-space: nowrap;
 }
 
-/* Выбор группы: кнопка, панель выбора и строка с выбранной группой. */
+/* выбор группы: кнопка, панель выбора и строка с выбранной группой. */
+/* Кнопка первого шага. Пока список групп не загружен из api,
+   она неактивна — нажимать было бы не на что. */
+#sidebar .group-pick-btn:disabled,
+#sidebar .group-confirm-btn:disabled {
+    background: var(--surface-active);
+    color: var(--ink-tertiary);
+    border-color: var(--border);
+    cursor: not-allowed;
+}
+
 #sidebar .group-pick-btn {
     width: 100%;
     padding: 10px;
@@ -1021,6 +1031,60 @@ canvas {
     cursor: pointer;
     transition: background var(--duration-fast) ease,
                 border-color var(--duration-fast) ease;
+}
+
+/* Поиск по группам. Появляется после выбора направления: групп может
+   быть много, на телефоне листать их неудобно. */
+.group-search {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-s);
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.group-search:hover {
+    border-color: var(--border-strong);
+}
+
+/* подсказка под списком: загрузка, ошибка, «ничего не нашлось» */
+.group-status {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--ink-tertiary);
+}
+
+.group-status:empty {
+    display: none;
+}
+
+.group-status.is-error {
+    color: var(--danger);
+}
+
+/* отмеченная, но ещё не подтверждённая группа */
+#sidebar .group-list-item.is-selected {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--ink);
+}
+
+/* подтверждение выбора */
+#sidebar .group-confirm-btn {
+    width: 100%;
+    padding: 12px;
+    background: var(--accent);
+    color: var(--on-accent);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-s);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--duration-fast) ease;
 }
 
 /* строка с уже выбранной группой */
@@ -1337,6 +1401,11 @@ canvas {
     color: var(--ink-tertiary);
     padding: var(--space-4);
     font-size: 12px;
+}
+
+/* сообщение об ошибке вместо списка пар */
+.no-pairs.pairs-error {
+    color: var(--danger);
 }
 
 .pair-card.past { border-left-color: var(--status-past); }
@@ -1719,6 +1788,30 @@ canvas {
         display: none;
     }
 
+    /* Выбор группы на телефоне: крупные цели под палец, список выше,
+       потому что экран длинный, а сайдбар всё равно скроллится. */
+    #sidebar .group-list-item {
+        min-height: 44px;
+        padding: 11px 12px;
+        font-size: 14px;
+    }
+
+    .group-list {
+        max-height: 45vh;
+        gap: var(--space-2);
+    }
+
+    #sidebar .group-pick-btn,
+    #sidebar .group-confirm-btn {
+        padding: 14px;
+        font-size: 14px;
+    }
+
+    #sidebar .group-change-btn {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+
     /* на мобильных панель скроллится, поэтому пару кнопок не прижимаем
        к низу — она идёт сразу под настройками */
     .sidebar-footer {
@@ -1935,8 +2028,13 @@ canvas {
    подсвеченной (а гамбургер — раскрытым) до следующего касания. Поэтому
    все они собраны здесь; :active и :focus-visible работают везде. */
 @media (hover: hover) and (pointer: fine) {
-    #sidebar .group-pick-btn:hover {
+    #sidebar .group-pick-btn:not(:disabled):hover,
+    #sidebar .group-confirm-btn:not(:disabled):hover {
         background: var(--accent-hover);
+    }
+
+    .group-search:hover {
+        border-color: var(--border-strong);
     }
 
     #sidebar .group-list-item:hover {

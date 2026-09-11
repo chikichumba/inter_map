@@ -38,20 +38,31 @@
             <!-- состояние 1: группа ещё не выбрана -->
             <button id="group-pick-btn" class="group-pick-btn" type="button">Выбрать группу</button>
 
-            <!-- состояние 2: идёт выбор -->
+
+            <!-- состояние 2: идёт выбор. Кнопка внизу остаётся неактивной,
+                 пока в списке не отмечена группа. -->
             <div id="group-picker-panel" class="group-picker-panel" hidden>
                 <label class="group-picker-label" for="direction-select">Выберите направление</label>
                 <select id="direction-select">
                     <option value="">Не выбрано</option>
                 </select>
+
+                <input type="search" id="group-search" class="group-search" placeholder="Поиск группы" autocomplete="off" hidden>
+
                 <!-- кнопки групп рисует app.js по выбранному направлению -->
                 <div id="group-list" class="group-list"></div>
+
+                <button id="group-confirm-btn" class="group-confirm-btn" type="button" disabled>Выбрать группу</button>
             </div>
+
+            <!-- Подсказки видны во всех состояниях: и когда список ещё
+                 грузится, и когда api недоступен. -->
+            <p id="group-status" class="group-status" role="status" aria-live="polite"></p>
 
             <!-- состояние 3: группа выбрана -->
             <div id="group-current" class="group-current" hidden>
                 <span id="group-current-name" class="group-current-name"></span>
-                <button id="group-change-btn" class="group-change-btn" type="button">Изменить</button>
+                <button id="group-change-btn" class="group-change-btn" type="button">Изменить группу</button>
             </div>
 
             <!-- Прежний список остаётся ради app.js: он читает отсюда
