@@ -177,10 +177,6 @@ def normalize_lesson(raw: dict, teacher: dict) -> dict:
         "teacher_id": str(teacher["id"]),
         "teacher_name": teacher.get("fio", ""),
         "date": raw.get("date"),
-        # API в остальных полях использует camelCase (startTime, weekType
-        # и т.д.), поэтому здесь тоже пробуем camelCase-варианты в первую
-        # очередь и падаем обратно на snake_case на всякий случай.
-        # ВАЖНО: сверьте с реальным ответом API и уберите лишний вариант.
         "weekday": raw.get("weekDay", raw.get("weekday")),
         "lesson_number": raw.get("lessonNumber", raw.get("lesson_number")),
         "time_start": raw.get("startTime") or "",

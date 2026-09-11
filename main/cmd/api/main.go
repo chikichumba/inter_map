@@ -13,8 +13,6 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
-	"github.com/labstack/echo/middleware"
-	"github.com/labstack/echo/v4/middleware"
 )
 
 func main() {
@@ -23,6 +21,10 @@ func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("config error: %v", err)
+	}
+
+	if len(cfg.AllowedOrigins) == 1 && cfg.AllowedOrigins[0] == "*" {
+		log.Println("warning: ALLOWED_ORIGINS not set, allowing all origins")
 	}
 
 	ctx := context.Background()
@@ -35,17 +37,18 @@ func main() {
 	scheduleH := &handlers.ScheduleHandler{DB: pool}
 	healthH := &handlers.HealthHandler{DB: pool}
 
-	r := chi.NewRouter
+	r := chi.NewRouter()
 	r.Use(middleware.Logger)
-	r.Use(middleware.Recover)
+	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(10 * time.Second))
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins: []string{cfg.AllowedOrigin},
+		AllowedOrigins: cfg.AllowedOrigins,
 		AllowedMethods: []string{"GET", "OPTIONS"},
 	}))
 
 	r.Get("/healthz", healthH.Check)
 	r.Get("/api/lessons", scheduleH.List)
+	r.Get("/api/debug/count", scheduleH.Debug)
 
 	log.Printf("listening on :%s", cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, r))

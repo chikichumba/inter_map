@@ -3,7 +3,7 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
-.env
+.env.example
 
 # ОС и редакторы
 .DS_Store

@@ -33,7 +33,7 @@ func (h *ScheduleHandler) List(w http.ResponseWriter, r *http.Request) {
 		argN++
 	}
 	if v := q.Get("group"); v != "" {
-		query += fmt.Sprintf(` AND teacher_id = $%d`, argN)
+		query += fmt.Sprintf(` AND "group" ILIKE '%%' || $%d || '%%'`, argN)
 		args = append(args, v)
 		argN++
 	}
@@ -76,10 +76,26 @@ func (h *ScheduleHandler) List(w http.ResponseWriter, r *http.Request) {
 		}
 		result = append(result, l)
 	}
+
+	if err := rows.Err(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	if result == nil {
 		result = []models.Lesson{}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
+}
+
+func (h *ScheduleHandler) Debug(w http.ResponseWriter, r *http.Request) {
+	var count int
+	err := h.DB.QueryRow(r.Context(), `SELECT COUNT(*) FROM teacher_schedule`).Scan(&count)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	fmt.Fprintf(w, "rows: %d\n", count)
 }

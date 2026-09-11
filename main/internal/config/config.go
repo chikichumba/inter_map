@@ -1,25 +1,20 @@
 package config
 
 import (
-	"fmt"
 	"os"
+	"strings"
 )
 
 type Config struct {
-	DatabaseURL   string
-	Port          string
-	AllowedOrigin string
+	DatabaseURL    string
+	Port           string
+	AllowedOrigins []string
 }
 
 func Load() (*Config, error) {
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		return nil, fmt.Errorf("DATABASE_URL is required")
-	}
-
-	origin := os.Getenv("ALLOWED_ORIGIN")
-	if origin == "" {
-		return nil, fmt.Errorf("ALLOWED_ORIGIN is required")
+		dbURL = "postgres://postgres:postgres@localhost:5432/college_schedule?sslmode=disable"
 	}
 
 	port := os.Getenv("PORT")
@@ -27,9 +22,19 @@ func Load() (*Config, error) {
 		port = "8080"
 	}
 
+	var origins []string
+	if raw := os.Getenv("ALLOWED_ORIGINS"); raw != "" {
+		for _, o := range strings.Split(raw, ",") {
+			origins = append(origins, strings.TrimSpace(o))
+		}
+	} else {
+		origins = []string{"*"}
+	}
+
 	return &Config{
-		DatabaseURL:   dbURL,
-		Port:          port,
-		AllowedOrigin: origin,
+		DatabaseURL:    dbURL,
+		Port:           port,
+		AllowedOrigins: origins,
 	}, nil
+
 }
