@@ -10,8 +10,11 @@ const INITIAL_ZOOM_DESKTOP = 2.6;
 const INITIAL_ZOOM_MOBILE = 1.5;
 const INITIAL_ZOOM = isMobile ? INITIAL_ZOOM_MOBILE : INITIAL_ZOOM_DESKTOP;
 
-// конфигурация модели
-const GLB_URL = './glbs/2ndfloor.glb';
+// модели этажей, этаж есть в списке — готов показываем его план, нет в списке - заглушка
+const FLOOR_MODELS = {
+    2: './glbs/2ndfloor.glb',
+    3: './glbs/3rdfloor.glb'
+};
 const DIAGONAL_MARGIN = 2.0;
 const FRUSTUM_MARGIN = 1.0;
 const FIXED_AZIMUTH = 0;
@@ -48,14 +51,24 @@ const roomConfig = {
     'ground_1': { number: '', name: 'No info', showPanel: false }
 };
 
+// Кабинеты третьего этажа. id мешей пока неизвестны — их можно подсмотреть
+// режимом отладки (20 нажатий на этаж 2) и дописать сюда так же, как выше.
+const roomConfigFloor3 = {};
+
+// какой конфиг использовать для какого этажа
+const floorRoomConfigs = {
+    2: roomConfig,
+    3: roomConfigFloor3
+};
+
 // резервный массив (не используется, если конфиг задан)
 const roomConfigByIndex = [];
 
 // Каталог групп по направлениям. потом заменить ответ с бэка на апишку//.
 const groupCatalog = [
-    { id: 'is', title: 'Информационные системы', groups: ['Кирилл вафледрон', 'Кирилл пидор'] },
-    { id: 'eco', title: 'Экономика и управление', groups: ['Кирилл хуекрыл', 'Кирилл даун'] },
-    { id: 'law', title: 'Право', groups: ['Кирилл бакланил', 'папа где наше API'] }
+    { id: 'is', title: 'Информационные системы', groups: ['Группа 1', 'Группа 2'] },
+    { id: 'eco', title: 'Экономика и управление', groups: ['Группа 3', 'Группа 4'] },
+    { id: 'law', title: 'Право', groups: ['Группа 5', 'Группа 6'] }
 ];
 
 // глобальное состояние приложения
@@ -147,69 +160,101 @@ const DRAG_THRESHOLD = 5;
 
 // загрузка glb-модели
 const loader = new GLTFLoader();
-loader.load(
-    GLB_URL,
-    (gltf) => {
-        const model = gltf.scene;
-        loadedModel = model;
-        scene.add(model);
 
-        // собираем все меши в массив
-        model.traverse((child) => {
-            if (child.isMesh) roomMeshes.push(child);
-        });
+// анимация запускается один раз, дальше рисует текущую сцену
+let animationStarted = false;
 
-        // сопоставляем каждый меш с конфигурацией кабинета
-        roomMeshes.forEach((mesh, index) => {
-            let config = null;
-            let roomId = null;
-            const name = mesh.name || '';
+// загрузка плана выбранного этажа, вызывается при каждом переключении
+function loadFloorModel(floor) {
+    const url = FLOOR_MODELS[floor];
+    if (!url) return;
 
-            for (const id in roomConfig) {
-                if (name.includes(id)) {
-                    config = roomConfig[id];
-                    roomId = id;
-                    break;
-                }
-            }
-            if (!config && roomConfigByIndex[index]) {
-                config = roomConfigByIndex[index];
-                roomId = config.number || `index_${index}`;
-            }
-
-            if (config) {
-                mesh.userData.roomId = roomId;
-                mesh.userData.roomNumber = config.number;
-                mesh.userData.roomName = config.name;
-                mesh.userData.showPanel = config.showPanel;
-            } else {
-                mesh.userData.roomId = roomId || `unknown_${index}`;
-                mesh.userData.roomNumber = '';
-                mesh.userData.roomName = name || `Объект ${index}`;
-                mesh.userData.showPanel = false;
-            }
-
-            // клонируем материал, чтобы можно было менять цвет индивидуально
-            if (mesh.material) {
-                mesh.material = Array.isArray(mesh.material)
-                    ? mesh.material.map((mat) => mat.clone())
-                    : mesh.material.clone();
-            }
-        });
-
-        // подгоняем камеру под модель и запускаем анимацию
-        fitCameraToModel(model);
-        resetAllRoomsToWhite();
-        modelLoading.classList.add('hidden');
-        animate();
-    },
-    undefined,
-    (error) => {
-        console.error('Ошибка загрузки модели:', error);
-        modelLoading.querySelector('.spinner').style.display = 'none';
-        modelLoading.querySelector('p').textContent = 'Не удалось загрузить план этажа. Обновите страницу.';
+    if (loadedModel) {
+        scene.remove(loadedModel);
+        loadedModel = null;
     }
-);
+
+    roomMeshes = [];
+    highlightedMeshes = [];
+    selectedMesh = null;
+    activeHighlightedMesh = null;
+
+    modelLoading.classList.remove('hidden');
+
+    loader.load(
+        url,
+        (gltf) => {
+            const model = gltf.scene;
+            loadedModel = model;
+            scene.add(model);
+
+            // собираем все меши в массив
+            model.traverse((child) => {
+                if (child.isMesh) roomMeshes.push(child);
+            });
+
+            // конфиг кабинетов у каждого этажа свой
+            const floorConfig = floorRoomConfigs[floor] || {};
+
+            // сопоставляем каждый меш с конфигурацией кабинета
+            roomMeshes.forEach((mesh, index) => {
+                let config = null;
+                let roomId = null;
+                const name = mesh.name || '';
+
+                for (const id in floorConfig) {
+                    if (name.includes(id)) {
+                        config = floorConfig[id];
+                        roomId = id;
+                        break;
+                    }
+                }
+                if (!config && roomConfigByIndex[index]) {
+                    config = roomConfigByIndex[index];
+                    roomId = config.number || `index_${index}`;
+                }
+
+                if (config) {
+                    mesh.userData.roomId = roomId;
+                    mesh.userData.roomNumber = config.number;
+                    mesh.userData.roomName = config.name;
+                    mesh.userData.showPanel = config.showPanel;
+                } else {
+                    mesh.userData.roomId = roomId || name || `unknown_${index}`;
+                    mesh.userData.roomNumber = '';
+                    mesh.userData.roomName = name || `Объект ${index}`;
+                    mesh.userData.showPanel = false;
+                }
+
+                // клонируем материал, чтобы можно было менять цвет индивидуально
+                if (mesh.material) {
+                    mesh.material = Array.isArray(mesh.material)
+                        ? mesh.material.map((mat) => mat.clone())
+                        : mesh.material.clone();
+                }
+            });
+
+            // подгоняем камеру под модель и запускаем анимацию
+            fitCameraToModel(model);
+            resetAllRoomsToWhite();
+            modelLoading.classList.add('hidden');
+
+            if (!animationStarted) {
+                animationStarted = true;
+                animate();
+            }
+
+            // подсветка пар на новом этаже
+            if (currentGroup) applyGroup(currentGroup);
+        },
+        undefined,
+        (error) => {
+            console.error('Ошибка загрузки модели:', error);
+            modelLoading.querySelector('.spinner').style.display = 'none';
+            modelLoading.querySelector('p').textContent = 'Не удалось загрузить план этажа. Обновите страницу.';
+        }
+    );
+}
 
 // функция подгонки камеры под размеры модели
 function fitCameraToModel(model) {
@@ -280,7 +325,7 @@ function parseDateString(value) {
 
 // запрос расписания с сервера (или фолбэк при ошибке)
 async function fetchSchedule(group, dateStr = currentDate) {
-    if (currentFloor !== 2) return [];
+    if (!FLOOR_MODELS[currentFloor]) return [];
     try {
         const url = `${API_BASE_URL}${SCHEDULE_ENDPOINT}?group=${encodeURIComponent(group)}&date=${dateStr}`;
         const response = await fetch(url);
@@ -671,18 +716,22 @@ function setFloor(floor) {
         span.setAttribute('aria-current', isActive ? 'true' : 'false');
     });
 
-    if (floor !== 2) {
-        stubOverlay.classList.add('visible');
-        currentSchedule = [];
-        updatePairsUI([]);
+    const hasModel = Boolean(FLOOR_MODELS[floor]);
+    stubOverlay.classList.toggle('visible', !hasModel);
+
+    currentSchedule = [];
+    updatePairsUI([]);
+    hideRoomPanel();
+    showClickInfo(null);
+
+    if (hasModel) {
+        // модель грузится заново; расписание подтянется в ее колбэке
+        loadFloorModel(floor);
+    } else {
         resetAllRoomsToWhite(true);
-        hideRoomPanel();
         highlightedMeshes = [];
         selectedMesh = null;
         activeHighlightedMesh = null;
-    } else {
-        stubOverlay.classList.remove('visible');
-        if (currentGroup) applyGroup(currentGroup);
     }
 }
 
