@@ -51,6 +51,13 @@ const roomConfig = {
 // резервный массив (не используется, если конфиг задан)
 const roomConfigByIndex = [];
 
+// Каталог групп по направлениям. потом заменить ответ с бэка на апишку//.
+const groupCatalog = [
+    { id: 'is', title: 'Информационные системы', groups: ['Кирилл вафледрон', 'Кирилл пидор'] },
+    { id: 'eco', title: 'Экономика и управление', groups: ['Кирилл хуекрыл', 'Кирилл даун'] },
+    { id: 'law', title: 'Право', groups: ['Кирилл бакланил', 'папа где наше API'] }
+];
+
 // глобальное состояние приложения
 let currentGroup = null;
 let currentSchedule = [];
@@ -68,6 +75,7 @@ let scheduleCollapsedForRoom = false;
 // ссылки на dom-элементы
 const container = document.getElementById('model-container');
 const modelLoading = document.getElementById('model-loading');
+const clickInfoDiv = document.getElementById('click-info');
 const sidebarToggle = document.getElementById('sidebar-toggle');
 const sidebar = document.getElementById('sidebar');
 const groupSelect = document.getElementById('group-select');
@@ -238,8 +246,21 @@ function fitCameraToModel(model) {
     controls.update();
 }
 
-// Дата в виде «2026-09-11».
-//
+// подпись с id по obj.
+// первым идёт id меша из модели (это ключ для roomConfig), следом номер
+// и название кабинета, если заданы. 
+function showClickInfo(mesh) {
+    if (!clickInfoDiv) return;
+
+    if (!mesh) {
+        clickInfoDiv.textContent = '';
+        return;
+    }
+
+    const { roomId, roomNumber, roomName } = mesh.userData;
+    const details = [roomNumber, roomName].filter(Boolean).join(' · ');
+    clickInfoDiv.textContent = details ? `ID ${roomId} — ${details}` : `ID ${roomId}`;
+}
 // Раньше здесь был toISOString(), который переводит время в UTC. Из-за
 // этого ночью в Москве (UTC+3) приложение открывалось на вчерашнем дне,
 // а вечером в западных поясах — на завтрашнем. Берём локальные значения.
@@ -250,8 +271,7 @@ function getDateString(date) {
     return `${year}-${month}-${day}`;
 }
 
-// Разбор строки «2026-09-11» в дату по местному времени.
-// new Date('2026-09-11') понимает строку как UTC-полночь и в западных
+// понимает строку как UTC-полночь и в западных
 // поясах сдвигает день назад — поэтому собираем дату по частям.
 function parseDateString(value) {
     const [year, month, day] = value.split('-').map(Number);
@@ -340,8 +360,11 @@ function highlightRoomByRoomId(roomId) {
     const mesh = roomMeshes.find((m) => m.userData.roomNumber === roomId);
     if (!mesh || !mesh.userData.showPanel) {
         hideRoomPanel();
+        showClickInfo(null);
         return;
     }
+
+    showClickInfo(mesh);
 
     if (highlightedMeshes.includes(mesh)) {
         const status = mesh.userData.pairStatus;
@@ -495,11 +518,14 @@ function handleClick(event) {
 
     if (intersects.length === 0) {
         hideRoomPanel();
+        showClickInfo(null);
         return;
     }
 
     const mesh = intersects[0].object;
     const userData = mesh.userData;
+    // подпись показываем для любого объекта, даже если карточки у него нет
+    showClickInfo(mesh);
 
     if (highlightedMeshes.includes(mesh)) {
         const status = mesh.userData.pairStatus;
@@ -941,10 +967,140 @@ roomPanelBack.addEventListener('click', () => {
     if (shouldReopen) setScheduleOpen(true);
 });
 
-// ---------------------------------------------------------------------------
-// кнопка «Сбросить вид»: возвращает камеру в исходное положение,
+
+// кнопка Сбросить вид: возвращает камеру в исходное положение,
 // если пользователь увёл карту зумом или перетаскиванием
-// ---------------------------------------------------------------------------
 document.getElementById('reset-view').addEventListener('click', () => {
     if (loadedModel) fitCameraToModel(loadedModel);
 });
+
+// Выбоор группы кнопка - направление - список групп
+// Выбранная группа сохраняется в браузере, поэтому при следующем заходе
+const GROUP_STORAGE_KEY = 'intermap.selectedGroup';
+
+const groupPickBtn = document.getElementById('group-pick-btn');
+const groupPickerPanel = document.getElementById('group-picker-panel');
+const directionSelect = document.getElementById('direction-select');
+const groupList = document.getElementById('group-list');
+const groupCurrent = document.getElementById('group-current');
+const groupCurrentName = document.getElementById('group-current-name');
+const groupChangeBtn = document.getElementById('group-change-btn');
+
+// заполняем список направлений и скрытый список групп
+groupCatalog.forEach((direction) => {
+    const option = document.createElement('option');
+    option.value = direction.id;
+    option.textContent = direction.title;
+    directionSelect.appendChild(option);
+
+    direction.groups.forEach((name) => {
+        const groupOption = document.createElement('option');
+        groupOption.value = name;
+        groupOption.textContent = name;
+        groupSelect.appendChild(groupOption);
+    });
+});
+
+// три состояния блока: 'empty' — кнопка, 'picking' — выбор, 'chosen' — готово
+function showGroupState(state) {
+    groupPickBtn.hidden = state !== 'empty';
+    groupPickerPanel.hidden = state !== 'picking';
+    groupCurrent.hidden = state !== 'chosen';
+}
+
+// кнопки групп выбранного направления
+function renderGroupList(directionId) {
+    groupList.innerHTML = '';
+    const direction = groupCatalog.find((item) => item.id === directionId);
+    if (!direction) return;
+
+    direction.groups.forEach((name) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'group-list-item';
+        button.textContent = name;
+        button.addEventListener('click', () => selectGroup(name));
+        groupList.appendChild(button);
+    });
+}
+
+function selectGroup(name) {
+    groupSelect.value = name;
+    groupCurrentName.textContent = name;
+    try {
+        localStorage.setItem(GROUP_STORAGE_KEY, name);
+    } catch (error) {
+        // приватный режим — просто не запоминаем выбор
+    }
+    showGroupState('chosen');
+    // если расписание открыто, сразу перезагружаем его под новую группу
+    if (scheduleToggle.checked) applySelectedGroupIfNeeded();
+}
+
+groupPickBtn.addEventListener('click', () => showGroupState('picking'));
+groupChangeBtn.addEventListener('click', () => showGroupState('picking'));
+directionSelect.addEventListener('change', () => renderGroupList(directionSelect.value));
+
+// восстановление сохранённого выбора
+let savedGroup = null;
+try {
+    savedGroup = localStorage.getItem(GROUP_STORAGE_KEY);
+} catch (error) {
+    savedGroup = null;
+}
+
+// группа могла исчезнуть из каталога — тогда начинаем с чистого листа
+if (savedGroup && groupCatalog.some((direction) => direction.groups.includes(savedGroup))) {
+    selectGroup(savedGroup);
+} else {
+    showGroupState('empty');
+}
+
+// ---------------------------------------------------------------------------
+// РЕЖИМ ОТЛАДКИ
+//
+// подпись с id объекта нужна только крутым. от обычного пользователя она скрыта и
+// включается двадцатью нажатиями подряд на этаж 2. Столько же нажатий
+// выключает обратно. состояние запоминается в браузере.
+// ---------------------------------------------------------------------------
+const DEBUG_STORAGE_KEY = 'intermap.debug';
+const DEBUG_UNLOCK_TAPS = 20;
+
+let debugTaps = 0;
+
+function setDebugMode(enabled) {
+    document.documentElement.dataset.debug = enabled ? 'on' : 'off';
+    try {
+        localStorage.setItem(DEBUG_STORAGE_KEY, enabled ? 'on' : 'off');
+    } catch (error) {
+        // приватный режим — просто не запоминаем
+    }
+    if (clickInfoDiv) {
+        clickInfoDiv.textContent = enabled ? 'Режим отладки включён' : '';
+    }
+}
+
+floorNumbers.forEach((span) => {
+    span.addEventListener('click', () => {
+        // счётчик считает нажатия подряд: другой этаж сбрасывает его
+        if (span.dataset.floor !== '2') {
+            debugTaps = 0;
+            return;
+        }
+
+        debugTaps += 1;
+        if (debugTaps < DEBUG_UNLOCK_TAPS) return;
+
+        debugTaps = 0;
+        setDebugMode(document.documentElement.dataset.debug !== 'on');
+    });
+});
+
+// восстановление режима после перезагрузки
+try {
+    if (localStorage.getItem(DEBUG_STORAGE_KEY) === 'on') {
+        document.documentElement.dataset.debug = 'on';
+    }
+} catch (error) {
+    // хранилище недоступно — остаёмся в обычном режиме
+}
