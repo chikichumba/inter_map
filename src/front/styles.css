@@ -459,6 +459,29 @@ canvas {
 }
 
 
+/* Подпись с id obj по которому клик. стоит в правом нижнем углу:
+   слева кнопка легенды, сверху карточка кабинета. пока текста нет —
+   блок не показывается, кликам по карте не мешает. */
+#click-info {
+    position: absolute;
+    right: var(--space-3);
+    bottom: var(--space-3);
+    z-index: 4;
+    max-width: calc(100% - var(--space-6) * 2);
+    padding: 5px 10px;
+    background: var(--model-chip-bg);
+    border: 1px solid var(--model-chip-border);
+    border-radius: var(--radius-s);
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--model-ink);
+    pointer-events: none;
+}
+
+#click-info:empty {
+    display: none;
+}
+
 /* Кнопка «Подробнее» в левом нижнем углу карты. На её месте потом
    разворачивается легенда, поэтому координаты у них одинаковые. */
 .legend-control {

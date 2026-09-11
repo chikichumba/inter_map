@@ -141,6 +141,11 @@
                             <span class="legend-item"><span class="dot past"></span>Прошло</span>
                             <label for="legend-toggle" class="legend-btn legend-btn-hide">Скрыть</label>
                         </div>
+                        <!-- id obj, по которому кликнули.
+                             нужен, чтобы сопоставлять меши модели с кабинетами
+                             в roomConfig. пустой блок css прячет. -->
+                        <div id="click-info" role="status" aria-live="polite"></div>
+
                         <div id="stub-overlay" role="status" aria-live="polite">
                             <video class="stub-video" src="videos/stub-floor.mp4" autoplay muted loop playsinline preload="auto" aria-hidden="true"></video>
                         </div>

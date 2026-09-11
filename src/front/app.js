@@ -75,6 +75,7 @@ let scheduleCollapsedForRoom = false;
 // ссылки на dom-элементы
 const container = document.getElementById('model-container');
 const modelLoading = document.getElementById('model-loading');
+const clickInfoDiv = document.getElementById('click-info');
 const sidebarToggle = document.getElementById('sidebar-toggle');
 const sidebar = document.getElementById('sidebar');
 const groupSelect = document.getElementById('group-select');
@@ -245,8 +246,21 @@ function fitCameraToModel(model) {
     controls.update();
 }
 
-// Дата в виде «2026-09-11».
-//
+// подпись с id по obj.
+// первым идёт id меша из модели (это ключ для roomConfig), следом номер
+// и название кабинета, если заданы. 
+function showClickInfo(mesh) {
+    if (!clickInfoDiv) return;
+
+    if (!mesh) {
+        clickInfoDiv.textContent = '';
+        return;
+    }
+
+    const { roomId, roomNumber, roomName } = mesh.userData;
+    const details = [roomNumber, roomName].filter(Boolean).join(' · ');
+    clickInfoDiv.textContent = details ? `ID ${roomId} — ${details}` : `ID ${roomId}`;
+}
 // Раньше здесь был toISOString(), который переводит время в UTC. Из-за
 // этого ночью в Москве (UTC+3) приложение открывалось на вчерашнем дне,
 // а вечером в западных поясах — на завтрашнем. Берём локальные значения.
@@ -257,8 +271,7 @@ function getDateString(date) {
     return `${year}-${month}-${day}`;
 }
 
-// Разбор строки «2026-09-11» в дату по местному времени.
-// new Date('2026-09-11') понимает строку как UTC-полночь и в западных
+// понимает строку как UTC-полночь и в западных
 // поясах сдвигает день назад — поэтому собираем дату по частям.
 function parseDateString(value) {
     const [year, month, day] = value.split('-').map(Number);
@@ -347,8 +360,11 @@ function highlightRoomByRoomId(roomId) {
     const mesh = roomMeshes.find((m) => m.userData.roomNumber === roomId);
     if (!mesh || !mesh.userData.showPanel) {
         hideRoomPanel();
+        showClickInfo(null);
         return;
     }
+
+    showClickInfo(mesh);
 
     if (highlightedMeshes.includes(mesh)) {
         const status = mesh.userData.pairStatus;
@@ -502,11 +518,14 @@ function handleClick(event) {
 
     if (intersects.length === 0) {
         hideRoomPanel();
+        showClickInfo(null);
         return;
     }
 
     const mesh = intersects[0].object;
     const userData = mesh.userData;
+    // подпись показываем для любого объекта, даже если карточки у него нет
+    showClickInfo(mesh);
 
     if (highlightedMeshes.includes(mesh)) {
         const status = mesh.userData.pairStatus;
