@@ -1,0 +1,2117 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+:root {
+    color-scheme: light;
+
+    /* монохромная основа */
+    --bg: #FFFFFF;
+    --surface: #FFFFFF;
+    --ink: #1A1A1A;
+    --ink-secondary: #616161;
+    --ink-tertiary: #6E6E6E;
+    --border: #DDDDDD;
+    --accent: #2C2C2C;
+    --accent-hover: #1A1A1A;
+
+    /* приглушённые статусные цвета */
+    --status-past: #ff0000;
+    --status-past-bg: #F5F0EC;
+    --status-current: #00910c;
+    --status-current-bg: #EDF3EE;
+    --status-upcoming: #a600ff;
+    --status-upcoming-bg: #F7F2E8;
+
+    /* добавленные токены  */
+    --surface-hover: #F1F1F1;
+    --surface-active: #E7E7E7;
+    --border-strong: #BFBFBF;
+    --accent-soft: #EFEFEF;
+    --on-accent: #FFFFFF;
+    --overlay-bg: rgba(255, 255, 255, 0.94);
+    --overlay-veil: rgba(255, 255, 255, 0.95);
+    --focus-ring: #1A1A1A;
+    /* Красная кнопка «Закрыть». Сам красный одинаков во всех темах,
+       а цвет надписи на нём меняется — см. блоки тем ниже. */
+    --danger: #D93A3A;
+    --danger-hover: #C22F2F;
+    --on-danger: #FFFFFF;
+    /* фон сцены продублирован из app.js, чтобы фон канваса и фон
+       страницы не расходились при смене темы */
+    --model-bg: #F5F2EA;
+
+    --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+
+    --radius-s: 4px;
+    --radius-m: 6px;
+    --radius-l: 8px;
+
+    --shadow: 0 1px 3px rgba(0,0,0,0.04);
+    --shadow-card-hover: 0 6px 12px rgba(0,0,0,0.06);
+    --shadow-panel: 0 8px 28px rgba(0,0,0,0.10);
+
+    /* длительности анимаций одной точкой */
+    --duration-fast: 0.15s;
+    --duration-base: 0.25s;
+    --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+    /* Кривая и длительности выезда сайдбара. */
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    --duration-drawer-in: 0.36s;
+    --duration-drawer-out: 0.22s;
+    /* затемнение позади открытой шторки */
+    --scrim: rgba(18, 20, 24, 0.44);
+
+    /* геометрия закреплённого сайдбара и контентной колонки */
+    --sidebar-width: 260px;
+    --sidebar-inset: var(--space-4);
+    --content-max: 1100px;
+    --floor-column-width: 48px;
+    /* верхняя зона, которую шторка расписания не перекрывает:
+       кнопка ☰ (46px) + отступы */
+    --sheet-top-gap: 76px;
+    /* Высота верхней полосы на телефоне: под ней начинается контент
+       и от неё же отсчитывается карточка кабинета. */
+    --mobile-top-bar: 62px;
+
+    /* Правый отступ панели кабинета: считается так, чтобы её правый край
+       остановился на 12px левее колонки этажей. #main-container центрирован
+       в области справа от сайдбара, поэтому позиция колонки этажей
+       восстанавливается из тех же констант:
+         правый край контента = (сайдбар + 2 отступа)/2 + 50vw + ширина/2
+       Панель по-прежнему fixed и ничего не двигает — #model-container не
+       меняет размер (app.js не пересчитывает frustum ортокамеры). !!!VAJNO!!!*/
+    --room-panel-right: calc(
+        50vw
+        - (var(--sidebar-width) + var(--sidebar-inset) * 2) / 2
+        + var(--space-4) / 2
+        - min(
+            var(--content-max),
+            100vw - var(--sidebar-width) - var(--sidebar-inset) * 2 - var(--space-4)
+          ) / 2
+        + var(--floor-column-width) + var(--space-3)
+    );
+
+    /* Область карты одинакова в любой теме: чипы, заглушка и текст поверх
+       канваса не переопределяются в темах — см. комментарий вверху файла. */
+    --model-chip-bg: rgba(255, 255, 255, 0.92);
+    --model-chip-border: rgba(26, 26, 26, 0.12);
+    --model-ink: #55534E;
+    --model-stub-bg: rgba(245, 242, 234, 0.95);
+}
+
+/* белая тема — явное дублирование базовых значений,
+   чтобы атрибут можно было переставлять в обе стороны */
+:root[data-theme="white"] {
+    color-scheme: light;
+    --bg: #FFFFFF;
+    --surface: #FFFFFF;
+    --ink: #1A1A1A;
+    --ink-secondary: #616161;
+    --ink-tertiary: #6E6E6E;
+    --border: #DDDDDD;
+    --accent: #2C2C2C;
+    --accent-hover: #1A1A1A;
+    --surface-hover: #F1F1F1;
+    --surface-active: #E7E7E7;
+    --border-strong: #BFBFBF;
+    --accent-soft: #EFEFEF;
+    --on-accent: #FFFFFF;
+    --overlay-bg: rgba(255, 255, 255, 0.94);
+    --overlay-veil: rgba(255, 255, 255, 0.95);
+    --focus-ring: #1A1A1A;
+    --danger: #D93A3A;
+    --danger-hover: #C22F2F;
+    --on-danger: #FFFFFF;
+    --status-past-bg: #F4F1EF;
+    --status-current-bg: #ECF3EE;
+    --status-upcoming-bg: #F6F2E9;
+    --model-bg: #F5F2EA;
+}
+
+/* прежняя тёплая светлая тема — сохранена как третий вариант */
+:root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #FAFAF8;
+    --surface: #FFFFFF;
+    --ink: #1A1A1A;
+    --ink-secondary: #666666;
+    --ink-tertiary: #6F6F6B;
+    --border: #E5E5E0;
+    --accent: #2C2C2C;
+    --accent-hover: #1A1A1A;
+    --surface-hover: #F2F1EC;
+    --surface-active: #E9E8E2;
+    --border-strong: #C9C9C2;
+    --accent-soft: #EDEDE8;
+    --on-accent: #FFFFFF;
+    --overlay-bg: rgba(255, 255, 255, 0.92);
+    --overlay-veil: rgba(250, 250, 248, 0.95);
+    --focus-ring: #1A1A1A;
+    --danger: #D93A3A;
+    --danger-hover: #C22F2F;
+    --on-danger: #FFFFFF;
+    --model-bg: #F5F2EA;
+}
+
+/* темная тема. */
+:root[data-theme="dark"],
+:root:has(#theme-toggle:checked) {
+    color-scheme: dark;
+    --bg: #212429;
+    --surface: #2A2E34;
+    --ink: #E4E2DE;
+    --ink-secondary: #B4B9C1;
+    --ink-tertiary: #969CA5;
+    --border: #3A3F47;
+    /* акцент инвертирован: спокойный светло-серый с тёмным текстом */
+    --accent: #D8D5D0;
+    --accent-hover: #EAE7E2;
+    --surface-hover: #333841;
+    --surface-active: #3C424B;
+    --border-strong: #525862;
+    --accent-soft: #31363E;
+    --on-accent: #1E2126;
+    --overlay-bg: rgba(42, 46, 52, 0.92);
+    --overlay-veil: rgba(33, 36, 41, 0.95);
+    --focus-ring: #C8CDD4;
+    /* Красный чуть светлее, чем в светлых темах: на тёмном фоне
+       глубокий красный выглядит грязным пятном. */
+    --danger: #E85C5C;
+    --danger-hover: #F07070;
+    --on-danger: #1B0F0E;
+    --scrim: rgba(0, 0, 0, 0.6);
+    /* статусные цвета приглушены под темный фон */
+    --status-past: #ff0000;
+    --status-past-bg: #34302D;
+    --status-current: #1ca600;
+    --status-current-bg: #2A332D;
+    --status-upcoming: #a900f7;
+    --status-upcoming-bg: #34302A;
+    --model-bg: #F5F2EA;
+    --shadow: 0 1px 3px rgba(0,0,0,0.35);
+    --shadow-card-hover: 0 6px 12px rgba(0,0,0,0.40);
+    --shadow-panel: 0 8px 28px rgba(0,0,0,0.50);
+}
+
+/* базовые стили */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Атрибут hidden должен побеждать наши display: flex и display: block.
+   Без этого правила скрытые блоки остаются на экране — так на сайте
+   одновременно показывались обе кнопки «Выбрать группу». */
+[hidden] {
+    display: none !important;
+}
+
+body {
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: var(--bg);
+    font-family: var(--font-ui);
+    color: var(--ink);
+    overflow: hidden;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+}
+
+button {
+    font-family: inherit;
+}
+
+/* фокус для доступности — виден на всех интерактивных элементах */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+    outline: 1.5px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
+/* общий каркас.
+   Слева зарезервировано место под закрепленный сайдбар, поэтому карта
+   центрируется в оставшейся области и не уходит под панель. */
+#app-wrapper {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    align-items: stretch;
+    justify-content: center;
+    padding: var(--space-4);
+    padding-left: calc(var(--sidebar-width) + var(--sidebar-inset) * 2);
+}
+
+#main-container {
+    flex: 1;
+    max-width: var(--content-max);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    min-width: 0;
+}
+
+#content-row {
+    flex: 1;
+    display: flex;
+    align-items: stretch;
+    gap: var(--space-3);
+    min-height: 0;
+}
+
+#map-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    min-width: 0;
+}
+
+/* панель выбора даты — в сайдбаре, под переключателем «на день / на неделю».
+   Поле даты занимает всю ширину колонки */
+#date-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+    padding: 0;
+    flex-shrink: 0;
+}
+
+#date-panel input[type="date"] {
+    width: 100%;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-m);
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    background: var(--surface);
+    color: var(--ink);
+    text-align: center;
+    transition: border-color var(--duration-fast) ease,
+                background var(--duration-fast) ease;
+}
+
+
+/* строка кнопок перелистывания под полем даты */
+.date-nav {
+    display: flex;
+    gap: var(--space-2);
+}
+
+#sidebar #date-panel .nav-btn {
+    flex: 1 1 0;
+    width: auto;
+    height: 32px;
+    gap: 4px;
+    padding: 0 6px;
+    background: var(--surface);
+    color: var(--ink-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-s);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+
+#sidebar #date-panel .nav-btn:active {
+    background: var(--surface-active);
+}
+
+.nav-btn-arrow {
+    font-size: 13px;
+    line-height: 1;
+}
+
+/* иконка календаря в темной теме — светлая */
+:root[data-theme="dark"] #date-panel input[type="date"]::-webkit-calendar-picker-indicator,
+:root:has(#theme-toggle:checked) #date-panel input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(0.9);
+    cursor: pointer;
+}
+
+.nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-s);
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--ink-secondary);
+    transition: background var(--duration-fast) ease,
+                border-color var(--duration-fast) ease,
+                color var(--duration-fast) ease;
+}
+
+
+.nav-btn:active {
+    background: var(--surface-active);
+}
+
+/* блок выбора этажа */
+#floor-selector {
+    width: var(--floor-column-width);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    gap: var(--space-2);
+    background: var(--surface);
+    padding: var(--space-3) var(--space-2);
+    border-radius: var(--radius-m);
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+/* подпись над столбиком цифр; в 48px колонки помещается при 10px */
+.floor-selector-title {
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink-secondary);
+    user-select: none;
+    white-space: nowrap;
+}
+
+.floor-numbers {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.floor-numbers span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-secondary);
+    transition: background var(--duration-fast) ease,
+                color var(--duration-fast) ease;
+    user-select: none;
+}
+
+
+.floor-numbers span:active {
+    background: var(--surface-active);
+}
+
+/* активный этаж — заливка акцентом (класс .active ставит app.js) */
+.floor-numbers span.active {
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+
+/* контейнер модели */
+#model-container {
+    flex: 1 1 auto;
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-m);
+    background: var(--model-bg);
+    position: relative;
+    overflow: hidden;
+    touch-action: none;
+    min-height: 0;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+#model-container canvas {
+    cursor: pointer;
+}
+
+/* пока открыта шторка расписания, карта не принимает ни клики, ни жесты.
+   pointer-events: none означает «элемент не ловит мышь и касания»:
+   OrbitControls слушает канвас, а pointer-events до него не доходят.
+   Так перетаскивание внутри панели не крутит модель под ней. */
+:root:has(#schedule-toggle:checked) #model-container {
+    pointer-events: none;
+}
+
+#model-container canvas:active {
+    cursor: grabbing;
+}
+
+
+/* подпись с id obj по которому клик. стоит в правом нижнем углу:
+   слева кнопка легенды, сверху карточка кабинета. пока текста нет —
+   блок не показывается, кликам по карте не мешает. */
+/* скрыта от обычного пользователя: включается режимом отладки —
+   двадцать нажатий подряд на этаж 2(крутая функция в жсе). */
+#click-info {
+    display: none;
+    position: absolute;
+    right: var(--space-3);
+    bottom: var(--space-3);
+    z-index: 4;
+    max-width: calc(100% - var(--space-6) * 2);
+    padding: 5px 10px;
+    background: var(--model-chip-bg);
+    border: 1px solid var(--model-chip-border);
+    border-radius: var(--radius-s);
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--model-ink);
+    pointer-events: none;
+}
+
+:root[data-debug="on"] #click-info:not(:empty) {
+    display: block;
+}
+
+/* Кнопка «Подробнее» в левом нижнем углу карты. На её месте потом
+   разворачивается легенда, поэтому координаты у них одинаковые. */
+.legend-control {
+    position: absolute;
+    bottom: var(--space-3);
+    left: var(--space-3);
+    z-index: 4;
+    display: inline-flex;
+}
+
+/* Чекбокс невидим, но лежит поверх кнопки: нажатие попадает в него,
+   и он же ловит фокус с клавиатуры. */
+.legend-toggle-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+/* Когда легенда открыта, кнопку «Подробнее» прячем, а чекбокс перестаём
+   нажимать мышью — иначе он ловил бы клики поверх самой легенды.
+   Фокус с клавиатуры при этом не теряется. */
+:root:has(#legend-toggle:checked) .legend-btn-show {
+    display: none;
+}
+
+:root:has(#legend-toggle:checked) .legend-toggle-input {
+    pointer-events: none;
+}
+
+/* Обе кнопки — «Подробнее» и «Скрыть» — выглядят одинаково
+   и повторяют оформление плашек над картой. */
+.legend-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 12px;
+    background: var(--model-chip-bg);
+    border: 1px solid var(--model-chip-border);
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--model-ink);
+    cursor: pointer;
+    user-select: none;
+    pointer-events: auto;   /* сама легенда клики пропускает, кнопка — нет */
+    transition: background var(--duration-fast) ease;
+}
+
+.legend-btn-hide {
+    align-self: stretch;
+    margin-top: var(--space-1);
+}
+
+.legend-toggle-input:focus-visible + .legend-btn,
+:root:has(#legend-toggle:focus-visible) .legend-btn-hide {
+    outline: 1.5px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
+/* Легенда статусов. Прижата к левому нижнему углу карты — на то же место,
+   где стояла кнопка «Подробнее». Показывается только когда чекбокс отмечен.
+   Пункты идут столбиком: плашка узкая и на телефоне почти не отъедает места.
+   (Захотите вернуть их в строку — поменяйте flex-direction на row.) */
+#status-legend {
+    position: absolute;
+    top: auto;
+    bottom: var(--space-3);
+    left: var(--space-3);
+    right: auto;
+    transform: none;
+    z-index: 4;
+    display: none;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+    background: var(--model-chip-bg);
+    padding: 5px 10px;
+    border-radius: var(--radius-s);
+    border: 1px solid var(--model-chip-border);
+    font-size: 11px;
+    color: var(--model-ink);
+    pointer-events: none;
+    max-width: calc(100% - var(--space-5));
+}
+
+:root:has(#legend-toggle:checked) #status-legend {
+    display: flex;
+    animation: legend-in var(--duration-base) var(--ease-drawer);
+}
+
+@keyframes legend-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+#status-legend .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+#status-legend .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+#status-legend .dot.current { background: var(--status-current); }
+#status-legend .dot.upcoming { background: var(--status-upcoming); }
+#status-legend .dot.past { background: var(--status-past); }
+
+/* индикатор загрузки */
+#model-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    background: var(--model-bg);
+    z-index: 6;
+    transition: opacity 0.2s ease;
+}
+
+#model-loading.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.spinner {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid var(--model-chip-border);
+    border-top-color: var(--model-ink);
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+#model-loading p {
+    font-size: 12px;
+    color: var(--model-ink);
+    text-align: center;
+    padding: 0 var(--space-4);
+}
+
+/* заглушка для неактивных этажей */
+#stub-overlay {
+    position: absolute;
+    inset: 0;
+    background: var(--model-stub-bg);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+    border-radius: var(--radius-m);
+}
+
+#stub-overlay.visible { display: flex; }
+
+/* видео-заглушка: вписывается в контейнер целиком, не обрезаясь.
+   Кликов не ловит — заглушка и так перекрывает карту.
+   Автовоспроизведение стартует в момент, когда app.js ставит .visible:
+   пока у заглушки display: none, браузер видео не проигрывает. */
+.stub-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: var(--model-stub-bg);
+    pointer-events: none;
+}
+
+#stub-overlay span {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--model-ink);
+}
+
+/* кнопка-гамбургер для сайдбара: открывает панель после «Закрыть».
+   На десктопе прячется, пока сайдбар открыт (правило в блоке
+   min-width: 769px ниже), на узких экранах видна всегда. */
+#sidebar-toggle {
+    position: fixed;
+    top: var(--space-3);
+    left: var(--space-3);
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--space-2);
+    width: 46px;
+    height: 46px;
+    padding: 0 12px;
+    overflow: hidden;
+    white-space: nowrap;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-m);
+    box-shadow: var(--shadow);
+    font-size: 20px;
+    line-height: 1;
+    color: var(--ink);
+    cursor: pointer;
+    transition: width var(--duration-base) var(--ease),
+                background var(--duration-base) ease,
+                border-color var(--duration-base) ease,
+                color var(--duration-base) ease;
+}
+
+.sidebar-toggle-icon {
+    flex: 0 0 auto;
+    font-size: 20px;
+    line-height: 1;
+}
+
+.sidebar-toggle-text {
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity var(--duration-fast) ease;
+}
+
+/* при наведении и с клавиатуры кнопка инвертируется и разъезжается
+   в горизонтальную плашку с подписью */
+#sidebar-toggle:focus-visible {
+    width: 136px;
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+}
+
+#sidebar-toggle:focus-visible .sidebar-toggle-text {
+    opacity: 1;
+    transition-delay: 0.08s;
+}
+
+
+
+/* низ сайдбара: «Показать расписание» и «Закрыть» стоят парой, прижаты
+   к нижнему краю панели */
+.sidebar-footer {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+/* кнопка «Показать расписание» — чекбокс + label */
+.sidebar-action {
+    position: relative;
+    display: flex;
+}
+
+.schedule-toggle-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+#sidebar .sidebar-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin: 0;
+    padding: 10px;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-s);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: 0;
+    text-transform: none;
+    cursor: pointer;
+    transition: background var(--duration-fast) ease,
+                border-color var(--duration-fast) ease;
+}
+
+/* надпись на кнопке меняется вместе с состоянием панели:
+   закрыта — «Показать расписание», открыта — «Скрыть расписание».
+   Скрытая половина убрана через display: none, поэтому и доступное имя
+   кнопки для скринридера всегда совпадает с видимым текстом. */
+.sidebar-action-hide {
+    display: none;
+}
+
+:root:has(#schedule-toggle:checked) .sidebar-action-show {
+    display: none;
+}
+
+:root:has(#schedule-toggle:checked) .sidebar-action-hide {
+    display: inline;
+}
+
+
+/* пока панель открыта — кнопка подсвечена как активная */
+:root:has(#schedule-toggle:checked) #sidebar .sidebar-action-btn {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+}
+
+.schedule-toggle-input:focus-visible + .sidebar-action-btn {
+    outline: 1.5px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
+/* кнопка «Закрыть» */
+/* «Закрыть» выделена красным во всех темах: это единственное действие
+   в сайдбаре, которое убирает панель с экрана. Цвет надписи берётся из
+   --on-danger и отличается по темам: в светлых белый, в тёмной тёмный. */
+#sidebar .sidebar-close-btn {
+    display: block;
+    margin-top: 0;
+    width: 100%;
+    padding: 10px;
+    background: var(--danger);
+    color: var(--on-danger);
+    border: 1px solid var(--danger);
+    border-radius: var(--radius-s);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    cursor: pointer;
+    transition: background var(--duration-fast) ease,
+                border-color var(--duration-fast) ease;
+}
+
+
+/* Затемнение позади шторки. Всегда лежит в разметке, но по умолчанию
+   прозрачное и не ловит нажатия, поэтому карте не мешает. Показывается
+   только на узких экранах — на десктопе сайдбар карту не перекрывает
+   и затемнять нечего (правило в блоке max-width: 768px). */
+#sidebar-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 14;
+    background: var(--scrim);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--duration-drawer-out) var(--ease-drawer);
+}
+
+/* сам сайдбар — закреплён в левом верхнем углу, открыт по умолчанию. */
+#sidebar {
+    position: fixed;
+    top: var(--sidebar-inset);
+    left: var(--sidebar-inset);
+    width: var(--sidebar-width);
+    height: calc(100% - var(--sidebar-inset) * 2);
+    background: var(--surface);
+    z-index: 15;
+    padding: var(--space-5);
+    box-sizing: border-box;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    border-radius: var(--radius-l);
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    transition: transform var(--duration-drawer-in) var(--ease-drawer);
+}
+
+/* закрытое состояние: уезжает влево и перестаёт ловить фокус */
+#sidebar[aria-hidden="true"] {
+    transform: translateX(calc(-100% - var(--sidebar-inset) - 4px));
+    visibility: hidden;
+    transition: transform var(--duration-drawer-out) var(--ease-drawer),
+                visibility 0s linear var(--duration-drawer-out);
+}
+
+/* класс .open ставит app.js вместе с aria-hidden="false" —
+   правило идёт последним, чтобы открытие всегда побеждало */
+#sidebar.open {
+    left: var(--sidebar-inset);
+    transform: translateX(0);
+    visibility: visible;
+    transition: transform var(--duration-drawer-in) var(--ease-drawer),
+                visibility 0s;
+}
+
+/* пока панель открыта, гамбургер не нужен и не должен на неё налезать */
+@media (min-width: 769px) {
+    :root:has(#sidebar:not([aria-hidden="true"])) #sidebar-toggle {
+        display: none;
+    }
+}
+
+/* Содержимое въезжает следом за самой шторкой, по очереди сверху вниз.
+   Каждый следующий блок стартует на 40 мс позже — движение читается как
+   одно, а не как рывок всей панели. Работает только при открытии
+   (класс .open), поэтому на десктопе при первой загрузке ничего не мигает. */
+#sidebar.open > * {
+    animation: sidebar-item-in var(--duration-base) var(--ease-drawer) both;
+}
+
+#sidebar.open > *:nth-child(1) { animation-delay: 0.06s; }
+#sidebar.open > *:nth-child(2) { animation-delay: 0.10s; }
+#sidebar.open > *:nth-child(3) { animation-delay: 0.14s; }
+#sidebar.open > *:nth-child(4) { animation-delay: 0.18s; }
+#sidebar.open > *:nth-child(5) { animation-delay: 0.22s; }
+#sidebar.open > *:nth-child(6) { animation-delay: 0.26s; }
+
+@keyframes sidebar-item-in {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+#sidebar h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+/* секции сайдбара */
+.sidebar-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+/* заголовки секций сайдбара: крупнее и контрастнее прежнего
+   (12px/500/--ink-secondary), позиция и порядок не менялись */
+.sidebar-section-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--ink);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* «Группа» — тот же <label>, что и был, но в одном ритме
+   с остальными заголовками секций */
+#sidebar label {
+    display: block;
+    margin-bottom: var(--space-2);
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--ink);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* внутри секций отступы держит gap, поля не нужны */
+#sidebar .sidebar-section > label { margin-bottom: 0; }
+
+/* Скрытый элемент: не виден и не ловит фокус, но остаётся в разметке
+   для скриптов. */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    clip-path: inset(50%);
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+/* выбор группы: кнопка, панель выбора и строка с выбранной группой. */
+/* Кнопка первого шага. Пока список групп не загружен из api,
+   она неактивна — нажимать было бы не на что. */
+#sidebar .group-pick-btn:disabled,
+#sidebar .group-confirm-btn:disabled {
+    background: var(--surface-active);
+    color: var(--ink-tertiary);
+    border-color: var(--border);
+    cursor: not-allowed;
+}
+
+#sidebar .group-pick-btn {
+    width: 100%;
+    padding: 10px;
+    background: var(--accent);
+    color: var(--on-accent);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-s);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background var(--duration-fast) ease;
+}
+
+.group-picker-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+#sidebar .group-picker-label {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--ink-secondary);
+}
+
+/* подсказка под списком: загрузка, ошибка, «ничего не нашлось» */
+.group-status {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--ink-tertiary);
+}
+
+.group-status:empty {
+    display: none;
+}
+
+.group-status.is-error {
+    color: var(--danger);
+}
+
+/* подтверждение выбора */
+#sidebar .group-confirm-btn {
+    width: 100%;
+    padding: 12px;
+    background: var(--accent);
+    color: var(--on-accent);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-s);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--duration-fast) ease;
+}
+
+/* строка с уже выбранной группой */
+.group-current {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: 8px 10px 8px 12px;
+    background: var(--accent-soft);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-m);
+}
+
+.group-current-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+#sidebar .group-change-btn {
+    width: auto;
+    flex-shrink: 0;
+    padding: 5px 10px;
+    background: transparent;
+    color: var(--ink-secondary);
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background var(--duration-fast) ease,
+                color var(--duration-fast) ease;
+}
+
+#sidebar select {
+    width: 100%;
+    padding: 8px 10px;
+    margin-bottom: var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-s);
+    box-sizing: border-box;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color var(--duration-fast) ease;
+}
+
+#sidebar .sidebar-section > select { margin-bottom: 0; }
+
+
+/* выбранная группа выделена в раскрытом списке */
+#sidebar select option:checked {
+    background: var(--accent-soft);
+    color: var(--ink);
+    font-weight: 600;
+}
+
+#sidebar button {
+    width: 100%;
+    padding: 9px;
+    background: var(--accent);
+    color: var(--on-accent);
+    border: none;
+    border-radius: var(--radius-s);
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 13px;
+    transition: background var(--duration-fast) ease;
+}
+
+
+#sidebar .sidebar-week-btn {
+    margin-top: var(--space-3);
+}
+
+/* внутри переключателя периода кнопка живёт по своим правилам */
+#sidebar .view-switch .sidebar-week-btn { margin-top: 0; }
+
+/* сегментированный переключатель «на день / на неделю» */
+.view-switch {
+    display: flex;
+    gap: 2px;
+    padding: 3px;
+    background: var(--accent-soft);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-m);
+}
+
+#sidebar .view-switch-item {
+    flex: 1 1 0;
+    width: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 7px 8px;
+    border: none;
+    border-radius: var(--radius-s);
+    background: transparent;
+    color: var(--ink-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    user-select: none;
+    text-align: center;
+    transition: background var(--duration-fast) ease,
+                color var(--duration-fast) ease;
+}
+
+
+/* активная вкладка = текущая страница */
+#sidebar .view-switch-item.is-active {
+    background: var(--surface);
+    color: var(--ink);
+    font-weight: 600;
+    box-shadow: var(--shadow);
+    cursor: default;
+}
+
+/* переключатель темы */
+#sidebar .theme-switch {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin: 0;
+    padding: 2px 0;
+    font-size: 13px;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.theme-switch-input {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 46px;
+    height: 26px;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.theme-switch-track {
+    position: relative;
+    flex: 0 0 auto;
+    width: 46px;
+    height: 26px;
+    border-radius: 999px;
+    background: var(--surface-active);
+    border: 1px solid var(--border);
+    transition: background var(--duration-base) ease,
+                border-color var(--duration-base) ease;
+}
+
+/* бегунок несёт символ текущего действия: в белой теме ☾ (включить
+   тёмную), в тёмной ☀ (вернуть светлую) */
+.theme-switch-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    transition: transform var(--duration-base) var(--ease),
+                background var(--duration-base) ease;
+}
+
+.theme-switch-icon {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    line-height: 1;
+    color: var(--ink);
+    transition: opacity var(--duration-base) var(--ease),
+                transform var(--duration-base) var(--ease);
+}
+
+/* солнце ждёт за кадром, повёрнутое — при переключении иконки
+   переезжают друг в друга поворотом с растворением */
+.theme-switch-icon-sun {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.5);
+}
+
+.theme-switch-input:checked + .theme-switch-track {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.theme-switch-input:checked + .theme-switch-track .theme-switch-thumb {
+    transform: translateX(20px);
+}
+
+.theme-switch-input:checked + .theme-switch-track .theme-switch-icon-moon {
+    opacity: 0;
+    transform: rotate(90deg) scale(0.5);
+}
+
+.theme-switch-input:checked + .theme-switch-track .theme-switch-icon-sun {
+    opacity: 1;
+    transform: rotate(0) scale(1);
+}
+
+.theme-switch-input:focus-visible + .theme-switch-track {
+    outline: 1.5px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
+.theme-switch-text {
+    color: var(--ink);
+}
+
+/* лента пар */
+/* был горизонтальный скроллер под картой — теперь вертикальный
+   список внутри #schedule-panel */
+/* Список пар. Сетка auto-fill сама решает, сколько колонок поместится:
+   на широкой шторке выходит 2-3, на телефоне одна. Ничего настраивать
+   под каждый размер экрана не нужно. */
+#pairs-container {
+    flex: 1 1 auto;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    align-content: start;
+    overflow-x: hidden;
+    overflow-y: auto;
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+    box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+/* карточки пар создаёт app.js как дивку без tabindex, клики
+   ловит делегирование по .pair-card — с клавиатуры они недоступны, и CSS
+   этого не чинит. Минимальное вмешательство: в updatePairsUI добавить
+   card.tabIndex = 0 (стиль фокуса для них уже описан ниже). */
+.pair-card {
+    width: auto;
+    max-width: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--border);
+    border-radius: var(--radius-m);
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--ink);
+    cursor: pointer;
+    transition: transform var(--duration-base) ease,
+                box-shadow var(--duration-base) ease,
+                background-color var(--duration-base) ease,
+                border-color var(--duration-base) ease;
+}
+
+
+.pair-card:active {
+    transform: translateY(-1px) scale(0.98);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.pair-card:focus-visible {
+    outline: 1.5px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
+.pair-time {
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    color: var(--ink-secondary);
+}
+
+.pair-name {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+    margin: 4px 0 6px;
+}
+
+/* номер кабинета — компактной таблеткой, чтобы цеплялся взглядом */
+.pair-room {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--ink);
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.pair-teacher {
+    font-size: 11px;
+    color: var(--ink-tertiary);
+    margin-top: 6px;
+}
+
+.no-pairs {
+    grid-column: 1 / -1;
+    width: 100%;
+    text-align: center;
+    color: var(--ink-tertiary);
+    padding: var(--space-4);
+    font-size: 12px;
+}
+
+/* сообщение об ошибке вместо списка пар */
+.no-pairs.pairs-error {
+    color: var(--danger);
+}
+
+.pair-card.past { border-left-color: var(--status-past); }
+.pair-card.current { border-left-color: var(--status-current); background: var(--status-current-bg); }
+.pair-card.upcoming { border-left-color: var(--status-upcoming); }
+
+/* Полоса под картой. На десктопе не нужна — там свободного места нет,
+   поэтому показывается только на узких экранах. */
+#map-footer {
+    display: none;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    padding-top: var(--space-1);
+}
+
+.map-footer-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: 40px;
+    padding: 0 var(--space-5);
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    box-shadow: var(--shadow);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background var(--duration-fast) ease,
+                border-color var(--duration-fast) ease,
+                transform var(--duration-fast) var(--ease);
+}
+
+.map-footer-btn:active {
+    transform: scale(0.97);
+    background: var(--surface-active);
+}
+
+.map-footer-btn-icon {
+    font-size: 15px;
+    line-height: 1;
+    color: var(--ink-secondary);
+}
+
+/* панель расписания.
+   Открывается кнопкой в сайдбаре, стоит слева — вплотную к сайдбару, на
+   противоположной стороне от панели кабинета, поэтому две панели не спорят
+   друг с другом. Как и панель кабинета, это плавающий слой: раскладку она
+   не двигает и #model-container не ресайзит.
+   #pairs-container внутри — тот же самый узел, который наполняет app.js
+   в updatePairsUI(), поэтому содержимое всегда соответствует выбранной
+   группе и дате. */
+/* ПАНЕЛЬ РАСПИСАНИЯ.
+   Открывается кнопкой в сайдбаре или свайпом снизу вверх (см. app.js).
+   Показывается через :has() — если чекбокс #schedule-toggle отмечен,
+   правило ниже меняет display с none на flex.
+
+   Шторка снизу на всех экранах. На десктопе центрируется в области
+   справа от сайдбара (left/right + margin: auto), на телефоне занимает
+   всю ширину. Верхние 72px экрана не перекрываются никогда — там живёт
+   кнопка вызова сайдбара. */
+#schedule-panel {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: calc(var(--sidebar-width) + var(--sidebar-inset) * 2);
+    right: var(--space-4);
+    margin: 0 auto;
+    width: auto;
+    max-width: 760px;
+    max-height: calc(100dvh - var(--sheet-top-gap));
+    display: none;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4) var(--space-4);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: var(--radius-l) var(--radius-l) 0 0;
+    box-shadow: var(--shadow-panel);
+    z-index: 24;
+}
+
+/* ручка захвата: подсказывает, что шторку можно тянуть */
+.schedule-panel-grip {
+    flex-shrink: 0;
+    align-self: center;
+    width: 40px;
+    height: 4px;
+    margin-bottom: var(--space-1);
+    border-radius: 999px;
+    background: var(--border-strong);
+}
+
+:root:has(#schedule-toggle:checked) #schedule-panel {
+    display: flex;
+    animation: schedule-in var(--duration-base) var(--ease);
+}
+
+@keyframes schedule-in {
+    from { opacity: 0; transform: translateY(28px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.schedule-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+#schedule-panel h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.schedule-panel-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    font-size: 16px;
+    line-height: 1;
+    color: var(--ink-secondary);
+    cursor: pointer;
+    user-select: none;
+    transition: background var(--duration-fast) ease,
+                color var(--duration-fast) ease;
+}
+
+
+/* всплывающая панель кабинета. */
+/* Карточка кабинета висит СВЕРХУ карты — на месте, где раньше была
+   легенда. Так она не закрывает ни выбор этажа, ни кнопку «Сбросить вид»
+   внизу экрана. Значения left/right повторяют границы карты: слева
+   сайдбар, справа колонка этажей, а margin: 0 auto центрирует карточку
+   между ними. */
+#room-panel {
+    position: fixed;
+    top: calc(var(--sidebar-inset) + var(--space-3));
+    left: calc(var(--sidebar-width) + var(--sidebar-inset) * 2 + var(--space-3));
+    right: calc(var(--space-4) + var(--floor-column-width) + var(--space-3));
+    bottom: auto;
+    margin: 0 auto;
+    transform: none;
+    width: auto;
+    max-width: 340px;
+    max-height: min(46vh, 340px);
+    overflow-y: auto;
+    background: var(--surface);
+    border-radius: var(--radius-m);
+    box-shadow: var(--shadow-panel);
+    z-index: 25;
+    padding: var(--space-4);
+    display: none;
+    border: 1px solid var(--border);
+}
+
+#room-panel.visible {
+    display: block;
+    animation: panel-in var(--duration-base) var(--ease);
+}
+
+/* карточка мягко съезжает сверху */
+@keyframes panel-in {
+    from {
+        opacity: 0;
+        transform: translateY(-12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#room-panel .close-btn {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: none;
+    border: none;
+    border-radius: 50%;
+    font-size: 16px;
+    cursor: pointer;
+    color: var(--ink-secondary);
+    transition: background var(--duration-fast) ease,
+                color var(--duration-fast) ease;
+}
+
+
+/* Кнопка «Назад к расписанию». Спрятана по умолчанию и появляется,
+   только когда app.js вешает на карточку класс can-return —
+   то есть когда расписание свернулось ради этой карточки. */
+.room-panel-back {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: var(--space-3);
+    padding: 7px 12px;
+    background: var(--accent-soft);
+    color: var(--ink);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background var(--duration-fast) ease,
+                border-color var(--duration-fast) ease;
+}
+
+#room-panel.can-return .room-panel-back {
+    display: inline-flex;
+}
+
+.room-panel-back-icon {
+    font-size: 13px;
+    line-height: 1;
+}
+
+#room-panel h2 {
+    margin: 0 0 var(--space-3);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ink);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: var(--space-2);
+    padding-right: var(--space-4);
+}
+
+.room-pair-item {
+    background: var(--bg);
+    border-radius: var(--radius-s);
+    padding: 8px 10px;
+    margin-bottom: var(--space-2);
+    font-size: 12px;
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--border);
+    color: var(--ink);
+    animation: fade-item var(--duration-base) ease both;
+}
+
+@keyframes fade-item {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.room-pair-item.past { border-left-color: var(--status-past); }
+.room-pair-item.current { border-left-color: var(--status-current); background: var(--status-current-bg); }
+.room-pair-item.upcoming { border-left-color: var(--status-upcoming); }
+
+/* было 10px + --ink-tertiary #999 — мелко и по контрасту не проходило */
+.room-pair-date { font-size: 11px; color: var(--ink-tertiary); display: block; margin-bottom: 2px; }
+.room-pair-group { font-weight: 600; font-size: 13px; }
+.room-pair-teacher { font-size: 11px; color: var(--ink-tertiary); margin-top: 2px; }
+
+#room-panel-content p {
+    font-size: 12px;
+    color: var(--ink-tertiary);
+}
+
+/* адаптивные стили для планшетов и ниже */
+@media (max-width: 768px) {
+    /* экран целиком, без прокрутки страницы: карта тянется на всю
+       свободную высоту, выбор этажа и футер прижаты к низу */
+    body {
+        overflow: hidden;
+        height: 100dvh;
+        align-items: stretch;
+    }
+
+    #app-wrapper {
+        height: 100%;
+        min-height: 0;
+        padding: var(--space-2);
+        /* место под кнопку-гамбургер (46px + отступ сверху) */
+        padding-top: var(--mobile-top-bar);
+    }
+
+    #main-container {
+        max-width: 100%;
+        height: 100%;
+        gap: var(--space-2);
+    }
+
+    #content-row {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        min-height: 0;
+    }
+
+    #map-column {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        min-height: 0;
+    }
+
+    #model-container {
+        flex: 1 1 auto;
+        height: auto;
+        min-height: 180px;
+        max-height: none;
+    }
+
+    #map-footer {
+        display: flex;
+    }
+
+    /* пока шторка сайдбара открыта, карта под ней не реагирует на жесты */
+    :root:has(#sidebar.open) #model-container {
+        pointer-events: none;
+    }
+
+    /* шторка во всю ширину экрана */
+    #schedule-panel {
+        left: 0;
+        right: 0;
+        max-width: none;
+        padding: var(--space-2) var(--space-3) calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+    }
+
+    #pairs-container {
+        flex: 1 1 auto;
+        max-height: none;
+        height: auto;
+    }
+
+    #floor-selector {
+        order: 2;
+        width: 100%;
+        height: auto;
+        flex-direction: row;
+        justify-content: center;
+        padding: var(--space-2);
+        border-radius: var(--radius-m);
+        flex-shrink: 0;
+    }
+
+    .floor-numbers {
+        flex-direction: row;
+        gap: var(--space-3);
+    }
+
+    /* гамбургер нужен именно здесь: свайп от края работает только на
+       тач-устройствах, кнопка даёт доступ с клавиатуры и мышью */
+    #sidebar-toggle {
+        display: flex;
+    }
+
+    /* Пока сайдбар выехал, кнопка-гамбургер прячется: она бы висела
+       поверх открытой панели. Класс .open ставит app.js. */
+    :root:has(#sidebar.open) #sidebar-toggle {
+        display: none;
+    }
+
+    /* Выбор группы на телефоне: крупные цели под палец, список выше,
+       потому что экран длинный, а сайдбар всё равно скроллится. */
+    /* селекторы под палец */
+    #sidebar .group-picker-panel select {
+        min-height: 44px;
+        font-size: 14px;
+    }
+
+    #sidebar .group-pick-btn,
+    #sidebar .group-confirm-btn {
+        padding: 14px;
+        font-size: 14px;
+    }
+
+    #sidebar .group-change-btn {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+
+    /* на мобильных панель скроллится, поэтому пару кнопок не прижимаем
+       к низу — она идёт сразу под настройками */
+    .sidebar-footer {
+        margin-top: var(--space-2);
+    }
+
+    #sidebar .sidebar-close-btn {
+        padding: 12px;
+    }
+
+    #sidebar .sidebar-action-btn {
+        padding: 12px;
+    }
+
+    /* панель кабинета — нижний лист */
+    /* На телефоне карточка тоже сверху: сразу под кнопкой ☰,
+       во всю ширину экрана за вычетом полей. */
+    #room-panel {
+        top: calc(var(--mobile-top-bar) + var(--space-2));
+        left: var(--space-3);
+        right: var(--space-3);
+        bottom: auto;
+        width: auto;
+        max-width: none;
+        transform: none;
+        max-height: 44dvh;
+        overflow-y: auto;
+        border-radius: var(--radius-l);
+        box-shadow: var(--shadow-panel);
+        padding: var(--space-3);
+    }
+
+    /* сайдбар — выезжающая шторка */
+    #sidebar {
+        top: 0;
+        left: 0;
+        width: min(280px, 86vw);
+        height: 100%;
+        border: none;
+        border-right: 1px solid var(--border);
+        border-radius: 0;
+        box-shadow: none;
+        padding: 56px var(--space-5) var(--space-5);
+        transform: translateX(-100%);
+        /* скрыт не только визуально: закрытая шторка не ловит фокус */
+        visibility: hidden;
+        /* закрытие быстрее открытия — так интерфейс кажется отзывчивее */
+        transition: transform var(--duration-drawer-out) var(--ease-drawer),
+                    box-shadow var(--duration-drawer-out) linear,
+                    visibility 0s linear var(--duration-drawer-out);
+    }
+
+    #sidebar.open {
+        left: 0;
+        transform: translateX(0);
+        visibility: visible;
+        box-shadow: var(--shadow-panel);
+        transition: transform var(--duration-drawer-in) var(--ease-drawer),
+                    box-shadow var(--duration-drawer-in) linear,
+                    visibility 0s;
+    }
+
+    /* затемнение включается вместе со шторкой */
+    :root:has(#sidebar.open) #sidebar-scrim {
+        opacity: 1;
+        pointer-events: auto;
+        transition: opacity var(--duration-drawer-in) var(--ease-drawer);
+    }
+}
+
+/* узкие экраны (телефоны, от 360px) */
+@media (max-width: 480px) {
+    #app-wrapper {
+        padding: var(--space-1);
+        padding-top: var(--mobile-top-bar);
+    }
+
+    /* панель даты живёт в сайдбаре (280px), ужимать её не нужно —
+       поле остаётся крупным и читаемым */
+    #date-panel {
+        gap: var(--space-2);
+    }
+
+    #date-panel input[type="date"] {
+        padding: 10px 12px;
+        font-size: 14px;
+        min-width: 0;
+    }
+
+    .nav-btn {
+        width: 28px;
+        height: 28px;
+        font-size: 13px;
+        flex-shrink: 0;
+    }
+
+    #floor-selector {
+        padding: var(--space-1);
+    }
+
+    .floor-numbers span {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+    }
+
+    #model-container {
+        height: 55vh;
+        min-height: 200px;
+    }
+
+    #status-legend {
+        gap: var(--space-2);
+        font-size: 10px;
+    }
+
+    #pairs-container {
+        max-height: none;
+    }
+
+    .pair-card {
+        width: 100%;
+        max-width: none;
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+
+    #room-panel {
+        padding: var(--space-3) var(--space-3) calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+        max-height: 70vh;
+    }
+
+    #room-panel h2 {
+        font-size: 15px;
+    }
+}
+
+/* очень низкие экраны (ландшафтная ориентация):
+   нижний лист съел бы весь экран, поэтому панель снова боковая */
+@media (max-height: 500px) and (orientation: landscape) {
+    body {
+        overflow-y: auto;
+        height: auto;
+    }
+
+    /* на низком экране верхняя полоса ниже — кнопка ☰ прижата к краю */
+    :root {
+        --mobile-top-bar: 56px;
+    }
+
+    #app-wrapper {
+        height: auto;
+        min-height: 100vh;
+        padding: var(--space-1);
+        padding-top: var(--mobile-top-bar);
+    }
+
+    #sidebar-toggle {
+        top: var(--space-1);
+        left: var(--space-1);
+    }
+
+    #date-panel {
+        padding: 0;
+    }
+
+    #content-row {
+        gap: var(--space-1);
+    }
+
+    #model-container {
+        height: 70vh;
+        min-height: 200px;
+    }
+
+    /* низкий экран: шторка остаётся снизу, но верхняя свободная зона
+       меньше — иначе на неё не остаётся высоты */
+    #schedule-panel {
+        --sheet-top-gap: 56px;
+        padding: var(--space-1) var(--space-3) var(--space-3);
+    }
+
+    #pairs-container {
+        max-height: none;
+        height: auto;
+    }
+
+    #floor-selector {
+        padding: var(--space-1);
+    }
+
+    .floor-numbers span {
+        width: 24px;
+        height: 24px;
+        font-size: 10px;
+    }
+
+    #room-panel {
+        top: calc(var(--mobile-top-bar) + var(--space-1));
+        left: var(--space-2);
+        right: var(--space-2);
+        bottom: auto;
+        width: auto;
+        max-width: none;
+        transform: none;
+        max-height: calc(100dvh - var(--mobile-top-bar) - var(--space-4));
+        border-radius: var(--radius-m);
+        padding: var(--space-3);
+    }
+}
+
+/* Ховер-состояния только для мыши.
+   На тач-устройствах :hover «залипает» после тапа — кнопка осталась бы
+   подсвеченной (а гамбургер — раскрытым) до следующего касания. Поэтому
+   все они собраны здесь; :active и :focus-visible работают везде. */
+@media (hover: hover) and (pointer: fine) {
+    #sidebar .group-pick-btn:not(:disabled):hover,
+    #sidebar .group-confirm-btn:not(:disabled):hover {
+        background: var(--accent-hover);
+    }
+
+
+    #sidebar .group-change-btn:hover {
+        background: var(--surface);
+        color: var(--ink);
+    }
+
+    .legend-btn:hover {
+        background: var(--surface);
+    }
+
+    .room-panel-back:hover {
+        background: var(--surface-hover);
+        border-color: var(--border-strong);
+    }
+
+    #date-panel input[type="date"]:hover {
+        border-color: var(--border-strong);
+        background: var(--surface-hover);
+    }
+
+    #sidebar #date-panel .nav-btn:hover {
+        background: var(--surface-hover);
+        border-color: var(--border-strong);
+        color: var(--ink);
+    }
+
+    .nav-btn:hover {
+        background: var(--surface-hover);
+        border-color: var(--border-strong);
+        color: var(--ink);
+    }
+
+    .floor-numbers span:hover {
+        background: var(--surface-hover);
+        color: var(--ink);
+    }
+
+    .floor-numbers span.active:hover {
+        background: var(--accent-hover);
+        color: var(--on-accent);
+    }
+
+    #sidebar-toggle:hover {
+        width: 136px;
+        background: var(--accent);
+        border-color: var(--accent);
+        color: var(--on-accent);
+    }
+
+    #sidebar-toggle:hover .sidebar-toggle-text {
+        opacity: 1;
+        transition-delay: 0.08s;
+    }
+
+    #sidebar .sidebar-action-btn:hover {    background: var(--surface-hover);}
+
+    #sidebar .sidebar-close-btn:hover {
+        background: var(--danger-hover);
+        border-color: var(--danger-hover);
+    }
+
+    #sidebar select:hover { border-color: var(--border-strong); }
+
+    #sidebar button:hover { background: var(--accent-hover); }
+
+    #sidebar .view-switch-item:hover {
+        background: var(--surface-hover);
+        color: var(--ink);
+    }
+
+    #sidebar .view-switch-item.is-active:hover {
+        background: var(--surface);
+        color: var(--ink);
+        font-weight: 600;
+        box-shadow: var(--shadow);
+        cursor: default;
+    }
+
+    .pair-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-card-hover);
+        background-color: var(--surface-hover);
+    }
+
+    .schedule-panel-close:hover {
+        background: var(--surface-hover);
+        color: var(--ink);
+    }
+
+    #room-panel .close-btn:hover {
+        background: var(--surface-hover);
+        color: var(--ink);
+    }
+
+}
+
+/* уважение к системной настройке «меньше движения» */
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --duration-fast: 0.001s;
+        --duration-base: 0.001s;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    .spinner {
+        animation: none;
+        border-top-color: var(--accent);
+    }
+
+    .pair-card:hover,
+    .pair-card:active {
+        transform: none;
+    }
+
+    /* зацикленное видео — тоже движение: прячем, заглушка остаётся пустой */
+    .stub-video {
+        display: none;
+    }
+}

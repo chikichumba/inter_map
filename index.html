@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<!-- data-theme="white" — белая тема по умолчанию.
+     Значение "dark" включает тёмную; тем же занимается CSS-переключатель
+     #theme-toggle в сайдбаре (без участия JS).
+     Значение "light" — прежняя тёплая светлая тема, оставлена как вариант. -->
+<html lang="ru" data-theme="white">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="color-scheme" content="light dark">
+    <title>Навигатор по этажам</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    
+    <!-- кнопка открытия сайдбара (видна, когда сайдбар закрыт) -->
+    <button id="sidebar-toggle" aria-label="Открыть настройки" aria-expanded="false" aria-controls="sidebar"><span class="sidebar-toggle-icon" aria-hidden="true">☰</span><span class="sidebar-toggle-text">Настройки</span></button>
+
+    <!-- сайдбар выбора группы -->
+    <aside id="sidebar" aria-label="Настройки расписания">
+        <h3>Настройки</h3>
+
+        <!-- блок 1: период (день / неделя) -->
+        <div class="sidebar-section">
+            <span class="sidebar-section-title" id="view-switch-label">Расписание</span>
+            <div class="view-switch" role="group" aria-labelledby="view-switch-label">
+                <span class="view-switch-item is-active" aria-current="page">На день</span>
+                <!-- <button id="week-details-btn" class="sidebar-week-btn view-switch-item" type="button" aria-label="Открыть расписание на неделю">На неделю</button> -->
+            </div>
+        </div>
+
+        <!-- Блок 2: выбор группы в два шага — направление, затем группа.
+             Выбор сохраняется в браузере, при следующем заходе показывается
+             только выбранная группа. Три состояния ниже переключает app.js. -->
+        <div class="sidebar-section" id="group-picker">
+            <span class="sidebar-section-title">Группа</span>
+
+            <!-- состояние 1: группа ещё не выбрана -->
+            <button id="group-pick-btn" class="group-pick-btn" type="button">Выбрать группу</button>
+
+
+            <!-- Состояние 2: выбор. Сначала направление, затем группа —
+                 оба обычные селекторы. Кнопка внизу неактивна, пока группа
+                 не выбрана. -->
+            <div id="group-picker-panel" class="group-picker-panel" hidden>
+                <label class="group-picker-label" for="direction-select">Направление</label>
+                <select id="direction-select">
+                    <option value="">Не выбрано</option>
+                </select>
+
+                <label class="group-picker-label" for="group-select">Группа</label>
+                <!-- Тот же #group-select, из которого расписание берёт группу.
+                     Наполняется группами выбранного направления. -->
+                <select id="group-select" disabled>
+                    <option value="">Сначала выберите направление</option>
+                </select>
+
+                <button id="group-confirm-btn" class="group-confirm-btn" type="button" disabled>Выбрать группу</button>
+            </div>
+
+            <!-- состояние 3: группа выбрана -->
+            <div id="group-current" class="group-current" hidden>
+                <span id="group-current-name" class="group-current-name"></span>
+                <button id="group-change-btn" class="group-change-btn" type="button">Изменить группу</button>
+            </div>
+
+            <!-- Подсказки видны во всех состояниях: и когда список ещё
+                 грузится, и когда api недоступен. -->
+            <p id="group-status" class="group-status" role="status" aria-live="polite"></p>
+        </div>
+
+        <!-- блок 3: выбор даты (перенесён из-над карты) -->
+        <div class="sidebar-section">
+            <span class="sidebar-section-title" id="date-panel-label">Дата</span>
+            <!-- поле даты во всю ширину, стрелки перенесены под него —
+                 так в поле помещается вся дата, а не обрезанное число -->
+            <div id="date-panel" role="group" aria-labelledby="date-panel-label">
+                <input type="date" id="date-input" aria-label="Дата">
+                <div class="date-nav">
+                    <button class="nav-btn" id="prev-day" type="button"><span class="nav-btn-arrow" aria-hidden="true">←</span>Назад</button>
+                    <button class="nav-btn" id="next-day" type="button">Вперёд<span class="nav-btn-arrow" aria-hidden="true">→</span></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- блок 4: переключатель темы (чистый CSS, :has + #theme-toggle) -->
+        <div class="sidebar-section">
+            <span class="sidebar-section-title">Оформление</span>
+            <label class="theme-switch" for="theme-toggle">
+                <input type="checkbox" id="theme-toggle" class="theme-switch-input" role="switch">
+                <span class="theme-switch-track" aria-hidden="true">
+                    <span class="theme-switch-thumb">
+                        <span class="theme-switch-icon theme-switch-icon-moon">&#9790;</span>
+                        <span class="theme-switch-icon theme-switch-icon-sun">&#9728;</span>
+                    </span>
+                </span>
+                <span class="theme-switch-text">Тёмная тема</span>
+            </label>
+        </div>
+
+        <!-- две кнопки внизу панели, вплотную друг к другу -->
+        <div class="sidebar-footer">
+            <!-- Кнопка расписания. Под ней спрятан чекбокс: он отмечен —
+                 шторка открыта, снят — закрыта. Открытие заодно применяет
+                 выбранную выше группу, поэтому жать «Применить» не обязательно. -->
+            <div class="sidebar-action">
+                <input type="checkbox" id="schedule-toggle" class="schedule-toggle-input">
+                <label for="schedule-toggle" class="sidebar-action-btn">
+                    <span class="sidebar-action-show">Показать расписание</span>
+                    <span class="sidebar-action-hide">Скрыть расписание</span>
+                </label>
+            </div>
+
+            <!-- кнопка закрытия сайдбара: тот же #sidebar-close, что слушает app.js -->
+            <button id="sidebar-close" class="sidebar-close-btn" type="button" aria-label="Закрыть меню">Закрыть</button>
+        </div>
+    </aside>
+
+    <!-- Затемнение позади выехавшего сайдбара (только на телефоне).
+         Появляется вместе с ним и закрывает его по нажатию. -->
+    <div id="sidebar-scrim" aria-hidden="true"></div>
+
+    <!-- основной контент -->
+    <div id="app-wrapper">
+        <div id="main-container">
+            <!-- панель выбора даты переехала в сайдбар, под переключатель
+                 «на день / на неделю» — карта получила всю высоту колонки -->
+
+            <!-- блок с моделью и выбором этажа -->
+            <div id="content-row">
+                <div id="map-column">
+                    <!-- контейнер 3d-модели -->
+                    <div id="model-container" aria-label="Интерактивный план этажа">
+                        <div id="model-loading">
+                            <div class="spinner" role="status" aria-label="Загрузка модели"></div>
+                            <p>Загружаем план этажа…</p>
+                        </div>
+                        <!-- Легенда карты вызывается кнопкой. Состояние хранит
+                             скрытый чекбокс: снят — видна кнопка «Подробнее»,
+                             отмечен — вместо неё разворачивается легенда
+                             с кнопкой «Скрыть». Обе кнопки — это label
+                             одного и того же чекбокса, поэтому JS не нужен. -->
+                        <div class="legend-control">
+                            <input type="checkbox" id="legend-toggle" class="legend-toggle-input" aria-label="Показать легенду карты">
+                            <label for="legend-toggle" class="legend-btn legend-btn-show">Подробнее</label>
+                        </div>
+
+                        <div id="status-legend">
+                            <span class="legend-item"><span class="dot current"></span>Идёт сейчас</span>
+                            <span class="legend-item"><span class="dot upcoming"></span>Предстоит</span>
+                            <span class="legend-item"><span class="dot past"></span>Прошло</span>
+                            <label for="legend-toggle" class="legend-btn legend-btn-hide">Скрыть</label>
+                        </div>
+                        <!-- id obj, по которому кликнули.
+                             нужен, чтобы сопоставлять меши модели с кабинетами
+                             в roomConfig. пустой блок css прячет. -->
+                        <div id="click-info" role="status" aria-live="polite"></div>
+
+                        <div id="stub-overlay" role="status" aria-live="polite">
+                            <video class="stub-video" src="videos/stub-floor.mp4" autoplay muted loop playsinline preload="auto" aria-hidden="true"></video>
+                        </div>
+                    </div>
+                    <!-- лента пар переехала в #schedule-panel: карта занимает
+                         всю высоту колонки, расписание открывается кнопкой -->
+                </div>
+
+                <!-- блок выбора этажа (вертикальные цифры) -->
+                <nav id="floor-selector" aria-label="Выбор этажа">
+                    <span class="floor-selector-title">Этаж</span>
+                    <div class="floor-numbers">
+                        <span data-floor="2" role="button" tabindex="0">2</span>
+                        <span data-floor="3" role="button" tabindex="0">3</span>
+                        <span data-floor="4" role="button" tabindex="0">4</span>
+                        <span data-floor="5" role="button" tabindex="0">5</span>
+                        <span data-floor="6" role="button" tabindex="0">6</span>
+                    </div>
+                </nav>
+            </div>
+
+            <!-- Нижняя полоса. На телефоне под выбором этажа оставалось
+                 пустое место — теперь там кнопка возврата камеры.
+                 На широком экране полоса скрыта: там пустоты нет. -->
+            <div id="map-footer">
+                <button id="reset-view" class="map-footer-btn" type="button">
+                    <span class="map-footer-btn-icon" aria-hidden="true">⤢</span>Сбросить вид
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- панель расписания: открывается кнопкой «Показать расписание» в сайдбаре.
+         #pairs-container тот же самый — его наполняет app.js при смене группы
+         и даты, поэтому содержимое панели зависит от текущего выбора -->
+    <div id="schedule-panel" role="region" aria-labelledby="schedule-panel-title">
+        <!-- серая полоска-ручка: подсказывает, что шторку можно тянуть пальцем -->
+        <span class="schedule-panel-grip" aria-hidden="true"></span>
+        <div class="schedule-panel-head">
+            <h2 id="schedule-panel-title">Расписание</h2>
+            <label for="schedule-toggle" class="schedule-panel-close" aria-label="Закрыть расписание">&times;</label>
+        </div>
+        <div id="pairs-container" aria-live="polite">
+            <div class="no-pairs">Выберите группу, чтобы увидеть пары</div>
+        </div>
+    </div>
+
+    <!-- всплывающая панель кабинета -->
+    <div id="room-panel" role="dialog" aria-labelledby="room-panel-title" aria-modal="false">
+        <button class="close-btn" id="room-panel-close" type="button" aria-label="Закрыть">&times;</button>
+        <!-- Кнопка «Назад» появляется только тогда, когда карточку открыли
+             из расписания и оно ради неё свернулось. Возвращает расписание
+             обратно, чтобы можно было выбрать другую пару. -->
+        <button id="room-panel-back" class="room-panel-back" type="button">
+            <span class="room-panel-back-icon" aria-hidden="true">←</span>Назад к расписанию
+        </button>
+        <h2 id="room-panel-title">Кабинет</h2>
+        <div id="room-panel-content"></div>
+    </div>
+
+    <!-- импорт three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,1337 @@
+// импорты библиотек
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// определение мобильного устройства для настройки зума
+const isMobile = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    || window.matchMedia('(pointer: coarse)').matches;
+const INITIAL_ZOOM_DESKTOP = 2.6;
+const INITIAL_ZOOM_MOBILE = 1.5;
+const INITIAL_ZOOM = isMobile ? INITIAL_ZOOM_MOBILE : INITIAL_ZOOM_DESKTOP;
+
+// модели этажей, этаж есть в списке — готов показываем его план, нет в списке - заглушка
+const FLOOR_MODELS = {
+    2: './glbs/2ndfloor.glb',
+    3: './glbs/3rdfloor.glb'
+};
+const DIAGONAL_MARGIN = 2.0;
+const FRUSTUM_MARGIN = 1.0;
+const FIXED_AZIMUTH = 0;
+const FIXED_POLAR = 0.9472;
+
+// Настройки api. заменить ссылку на норм https, на сервере нужно разрешить домен сайта в ALLOWED_ORIGINS (cors)
+// Локально работаем с сервером на своей машине, на боевом сайте —
+// с публичным адресом. Второй нужно подставить: он должен быть на https,
+// иначе браузер заблокирует запрос со страницы, открытой по https.
+// Боевой адрес: сюда впишется https-адрес api, когда он появится.
+const API_PRODUCTION_URL = 'https://ЗАМЕНИТЬ-НА-АДРЕС-API';
+// Адрес для разработки: сервис поднят на соседней машине и виден
+// через Radmin VPN. Поменяйте, если сервис переедет.
+const API_DEV_URL = 'http://26.70.191.230:8080';
+const isLocalHost = ['localhost', '127.0.0.1'].includes(location.hostname);
+const API_BASE_URL = isLocalHost ? API_DEV_URL : API_PRODUCTION_URL;
+const LESSONS_ENDPOINT = '/api/lessons';
+const WEEK_SCHEDULE_PAGE_URL = 'week_schedule.html';
+
+// Сколько уроков тянем, когда собираем список групп. Отдельного
+// эндпоинта для групп у api нет, поэтому берём широкую выборку уроков
+// без фильтра по датам: расписание в базе может быть за любую неделю.
+const GROUPS_SCAN_LIMIT = 2000;
+
+// описание кабинетов по идентификаторам в модели
+const roomConfig = {
+    '6419': { number: '', name: 'Пожарная лестница', showPanel: true },
+    '6417': { number: 'Ж', name: 'Туалет', showPanel: true },
+    '6415': { number: 'М', name: 'Туалет', showPanel: true },
+    '6413': { number: '', name: 'no info', showPanel: true },
+    '6435': { number: '', name: 'Подсобное помещение', showPanel: false },
+    '6431': { number: '', name: 'Лестничная площадка', showPanel: true },
+    '6411': { number: '214', name: 'АХО', showPanel: true },
+    '6409': { number: '213', name: 'Приемная директора', showPanel: true },
+    '6407': { number: '212', name: 'Кабинет директора', showPanel: true },
+    '6423': { number: '211', name: 'Приемная комиссия', showPanel: true },
+    '6425': { number: '210', name: 'Заместитель директора по УВР', showPanel: true },
+    '6427': { number: '209', name: 'Аудитория (ПК)', showPanel: true },
+    '6443': { number: '208', name: 'Актовый зал', showPanel: true },
+    '6439': { number: '207', name: 'Спортивный зал', showPanel: true },
+    '6441': { number: '206', name: 'Лаборатория', showPanel: true },
+    '6437': { number: '205', name: 'Студенческий отдел кадров (СОК)', showPanel: true },
+    '6393': { number: '204', name: 'подсобное помещение', showPanel: true },
+    '6400': { number: '203', name: 'Раздевалка', showPanel: true },
+    '6433': { number: '202', name: 'Гардеробная', showPanel: true },
+    '6429': { number: '201', name: 'Коворкинг', showPanel: true },
+    // комната ground_1 не показывает панель
+    'ground_1': { number: '', name: 'No info', showPanel: false }
+};
+
+// Кабинеты третьего этажа. id мешей пока неизвестны — их можно подсмотреть
+// режимом отладки (20 нажатий на этаж 2) и дописать сюда так же, как выше.
+const roomConfigFloor3 = {};
+
+// какой конфиг использовать для какого этажа
+const floorRoomConfigs = {
+    2: roomConfig,
+    3: roomConfigFloor3
+};
+
+// резервный массив (не используется, если конфиг задан)
+const roomConfigByIndex = [];
+
+// Каталог групп по направлениям. потом заменить ответ с бэка на апишку//.
+// Каталог направлений и групп. Пустой до ответа api: заполняется в
+// loadGroupCatalog() ниже.
+let groupCatalog = [];
+
+// глобальное состояние приложения
+let currentGroup = null;
+let currentSchedule = [];
+let highlightedMeshes = [];
+let selectedMesh = null;
+let activeHighlightedMesh = null;
+let currentDate = getDateString(new Date());
+let currentFloor = 2;
+// ссылка на загруженную модель — нужна кнопке «Сбросить вид»
+let loadedModel = null;
+// true, если расписание свернулось, чтобы показать кабинет.
+// По нему кнопка «Назад» понимает, что ей есть куда возвращаться.
+let scheduleCollapsedForRoom = false;
+
+// ссылки на dom-элементы
+const container = document.getElementById('model-container');
+const modelLoading = document.getElementById('model-loading');
+const clickInfoDiv = document.getElementById('click-info');
+const sidebarToggle = document.getElementById('sidebar-toggle');
+const sidebar = document.getElementById('sidebar');
+const groupSelect = document.getElementById('group-select');
+const pairsContainer = document.getElementById('pairs-container');
+const roomPanel = document.getElementById('room-panel');
+const roomPanelClose = document.getElementById('room-panel-close');
+const roomPanelBack = document.getElementById('room-panel-back');
+const roomPanelTitle = document.getElementById('room-panel-title');
+const roomPanelContent = document.getElementById('room-panel-content');
+const dateInput = document.getElementById('date-input');
+const prevDayBtn = document.getElementById('prev-day');
+const nextDayBtn = document.getElementById('next-day');
+const weekDetailsBtn = document.getElementById('week-details-btn');
+const stubOverlay = document.getElementById('stub-overlay');
+const floorNumbers = document.querySelectorAll('.floor-numbers span');
+
+dateInput.value = currentDate;
+
+// инициализация three.js сцены
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xf5f2ea);
+const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
+camera.position.set(0, 10, 0);
+camera.lookAt(0, 0, 0);
+
+// создание рендерера и добавление его в контейнер
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+container.appendChild(renderer.domElement);
+
+// добавление освещения
+scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+dirLight.position.set(10, 20, 10);
+scene.add(dirLight);
+
+// настройка управления камерой
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.1;
+controls.screenSpacePanning = true;
+controls.enableZoom = true;
+controls.zoomSpeed = 1.2;
+controls.enableRotate = true;
+controls.minPolarAngle = 0;
+controls.maxPolarAngle = Math.PI / 2;
+controls.enablePan = true;
+controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+controls.update();
+
+// на мобильных отключаем вращение, оставляем панорамирование и зум
+if (isMobile) {
+    controls.enableRotate = false;
+    controls.touches.ONE = THREE.TOUCH.PAN;
+    controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
+}
+controls.update();
+
+// инициализация raycaster для обработки кликов
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let roomMeshes = [];
+const pointerDownPos = new THREE.Vector2();
+let isPointerDown = false;
+const DRAG_THRESHOLD = 5;
+
+// загрузка glb-модели
+const loader = new GLTFLoader();
+
+// анимация запускается один раз, дальше рисует текущую сцену
+let animationStarted = false;
+
+// загрузка плана выбранного этажа, вызывается при каждом переключении
+function loadFloorModel(floor) {
+    const url = FLOOR_MODELS[floor];
+    if (!url) return;
+
+    if (loadedModel) {
+        scene.remove(loadedModel);
+        loadedModel = null;
+    }
+
+    roomMeshes = [];
+    highlightedMeshes = [];
+    selectedMesh = null;
+    activeHighlightedMesh = null;
+
+    modelLoading.classList.remove('hidden');
+
+    loader.load(
+        url,
+        (gltf) => {
+            const model = gltf.scene;
+            loadedModel = model;
+            scene.add(model);
+
+            // собираем все меши в массив
+            model.traverse((child) => {
+                if (child.isMesh) roomMeshes.push(child);
+            });
+
+            // конфиг кабинетов у каждого этажа свой
+            const floorConfig = floorRoomConfigs[floor] || {};
+
+            // сопоставляем каждый меш с конфигурацией кабинета
+            roomMeshes.forEach((mesh, index) => {
+                let config = null;
+                let roomId = null;
+                const name = mesh.name || '';
+
+                for (const id in floorConfig) {
+                    if (name.includes(id)) {
+                        config = floorConfig[id];
+                        roomId = id;
+                        break;
+                    }
+                }
+                if (!config && roomConfigByIndex[index]) {
+                    config = roomConfigByIndex[index];
+                    roomId = config.number || `index_${index}`;
+                }
+
+                if (config) {
+                    mesh.userData.roomId = roomId;
+                    mesh.userData.roomNumber = config.number;
+                    mesh.userData.roomName = config.name;
+                    mesh.userData.showPanel = config.showPanel;
+                } else {
+                    mesh.userData.roomId = roomId || name || `unknown_${index}`;
+                    mesh.userData.roomNumber = '';
+                    mesh.userData.roomName = name || `Объект ${index}`;
+                    mesh.userData.showPanel = false;
+                }
+
+                // клонируем материал, чтобы можно было менять цвет индивидуально
+                if (mesh.material) {
+                    mesh.material = Array.isArray(mesh.material)
+                        ? mesh.material.map((mat) => mat.clone())
+                        : mesh.material.clone();
+                }
+            });
+
+            // подгоняем камеру под модель и запускаем анимацию
+            fitCameraToModel(model);
+            resetAllRoomsToWhite();
+            modelLoading.classList.add('hidden');
+
+            if (!animationStarted) {
+                animationStarted = true;
+                animate();
+            }
+
+            // подсветка пар на новом этаже
+            if (currentGroup) applyGroup(currentGroup);
+        },
+        undefined,
+        (error) => {
+            console.error('Ошибка загрузки модели:', error);
+            modelLoading.querySelector('.spinner').style.display = 'none';
+            modelLoading.querySelector('p').textContent = 'Не удалось загрузить план этажа. Обновите страницу.';
+        }
+    );
+}
+
+// функция подгонки камеры под размеры модели
+function fitCameraToModel(model) {
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const diagonal = Math.sqrt(size.x ** 2 + size.y ** 2 + size.z ** 2);
+
+    model.position.sub(center);
+    controls.target.set(0, 0, 0);
+
+    // вычисляем позицию камеры с учётом фиксированных углов
+    const camDistance = diagonal * DIAGONAL_MARGIN + 10;
+    const polar = FIXED_POLAR;
+    const azimuth = FIXED_AZIMUTH;
+    camera.position.set(
+        camDistance * Math.sin(polar) * Math.sin(azimuth),
+        camDistance * Math.cos(polar),
+        camDistance * Math.sin(polar) * Math.cos(azimuth)
+    );
+    camera.lookAt(controls.target);
+
+    // настраиваем ортографическую камеру под размеры модели
+    const frustumSize = diagonal * FRUSTUM_MARGIN;
+    const aspect = container.clientWidth / container.clientHeight;
+    camera.left = -frustumSize * aspect / 2;
+    camera.right = frustumSize * aspect / 2;
+    camera.top = frustumSize / 2;
+    camera.bottom = -frustumSize / 2;
+    camera.near = 0.1;
+    camera.far = diagonal * 10 + 1000;
+    camera.zoom = INITIAL_ZOOM;
+    camera.updateProjectionMatrix();
+    controls.update();
+}
+
+// подпись с id по obj.
+// первым идёт id меша из модели (это ключ для roomConfig), следом номер
+// и название кабинета, если заданы. 
+function showClickInfo(mesh) {
+    if (!clickInfoDiv) return;
+
+    if (!mesh) {
+        clickInfoDiv.textContent = '';
+        return;
+    }
+
+    const { roomId, roomNumber, roomName } = mesh.userData;
+    const details = [roomNumber, roomName].filter(Boolean).join(' · ');
+    clickInfoDiv.textContent = details ? `ID ${roomId} — ${details}` : `ID ${roomId}`;
+}
+// Раньше здесь был toISOString(), который переводит время в UTC. Из-за
+// этого ночью в Москве (UTC+3) приложение открывалось на вчерашнем дне,
+// а вечером в западных поясах — на завтрашнем. Берём локальные значения.
+function getDateString(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+// понимает строку как UTC-полночь и в западных
+// поясах сдвигает день назад — поэтому собираем дату по частям.
+function parseDateString(value) {
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, month - 1, day);
+}
+
+// запрос расписания с сервера
+// Запрос к api с ограничением по времени.
+//
+// Без таймаута повисший запрос молчит бесконечно, и на экране навсегда
+// остаётся «Загружаем…». AbortController обрывает его через заданное
+// число секунд, а текст ошибки потом показывается пользователю.
+const API_TIMEOUT_MS = 15000;
+
+async function fetchFromApi(path, params) {
+    const url = `${API_BASE_URL}${path}?${params}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
+    try {
+        const response = await fetch(url, { signal: controller.signal });
+        if (!response.ok) throw new Error(`сервер ответил ${response.status}`);
+        return await response.json();
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            throw new Error(`нет ответа за ${API_TIMEOUT_MS / 1000} с (${url})`);
+        }
+        // сюда попадают обрыв связи и блокировка ответа по cors
+        throw new Error(`${error.message} (${url})`);
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+function trimSeconds(time) {
+    return (time || '').slice(0, 5);
+}
+
+// урок из api -> карточка пары, как ее ждет остальной код.
+function lessonToPair(lesson) {
+    return {
+        time: `${trimSeconds(lesson.time_start)} - ${trimSeconds(lesson.time_end)}`,
+        name: lesson.subject,
+        roomId: lesson.room_number,
+        teacher: lesson.teacher_name
+    };
+}
+
+// запрос расписания за один день. ошибку показывается
+// Запрос расписания за один день.
+//
+// Фильтр по группе делаем на клиенте, а не параметром запроса. Причина:
+// в одном уроке поле group содержит несколько групп через запятую, и
+// серверный фильтр сравнивает строку целиком — по названию одной группы
+// он ничего не находит. Заодно это защищает от ложных совпадений вроде
+// «01-23.Д.ОФ.9» внутри «01-23.Д.ОФ.99».
+async function fetchSchedule(group, dateStr = currentDate) {
+    if (!FLOOR_MODELS[currentFloor]) return [];
+
+    const params = new URLSearchParams({
+        date_from: dateStr,
+        date_to: dateStr,
+        limit: String(GROUPS_SCAN_LIMIT)
+    });
+
+    const lessons = await fetchFromApi(LESSONS_ENDPOINT, params);
+    return lessons
+        .filter((lesson) => splitGroupField(lesson.group).includes(group))
+        .map(lessonToPair);
+}
+
+// определение статуса пары (прошла, идёт, предстоит)
+function getPairStatus(pair) {
+    const now = new Date();
+    const [startStr, endStr] = pair.time.split(' - ');
+    const [startH, startM] = startStr.split(':').map(Number);
+    const [endH, endM] = endStr.split(':').map(Number);
+    const start = new Date(`${currentDate}T${String(startH).padStart(2, '0')}:${String(startM).padStart(2, '0')}:00`);
+    const end = new Date(`${currentDate}T${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}:00`);
+    if (now < start) return 'upcoming';
+    if (now >= start && now <= end) return 'current';
+    return 'past';
+}
+
+// обновление списка пар в нижней панели
+function updatePairsUI(schedule) {
+    pairsContainer.innerHTML = '';
+    if (schedule.length === 0) {
+        pairsContainer.innerHTML = '<div class="no-pairs">На выбранную дату пар нет</div>';
+        return;
+    }
+    schedule.forEach((pair) => {
+        const card = document.createElement('div');
+        card.className = `pair-card ${getPairStatus(pair)}`;
+        card.dataset.roomId = pair.roomId;
+        // карточка ведёт себя как кнопка: попадает в обход по Tab
+        // и озвучивается скринридером как нажимаемая
+        card.tabIndex = 0;
+        card.setAttribute('role', 'button');
+        card.innerHTML = `
+            <div class="pair-time">${pair.time}</div>
+            <div class="pair-name">${pair.name}</div>
+            <div class="pair-room">Каб. ${pair.roomId}</div>
+            <div class="pair-teacher">${pair.teacher || 'Преподаватель не указан'}</div>
+        `;
+        pairsContainer.appendChild(card);
+    });
+}
+
+// подсветка кабинетов, в которых есть пары
+function highlightRoomsForSchedule(schedule) {
+    resetActiveSelection();
+    highlightedMeshes = [];
+    resetAllRoomsToWhite();
+
+    schedule.forEach((pair) => {
+        const status = getPairStatus(pair);
+        if (status === 'past') return;
+        const mesh = roomMeshes.find((m) => m.userData.roomNumber === pair.roomId);
+        if (mesh && mesh.userData.showPanel) {
+            mesh.userData.pairStatus = status;
+            animateMeshColor(mesh, getStatusColor(status, 'normal'));
+            highlightedMeshes.push(mesh);
+        }
+    });
+}
+
+// подсветка конкретного кабинета по его номеру (например, при клике на карточку пары)
+function highlightRoomByRoomId(roomId) {
+    resetActiveSelection();
+
+    const mesh = roomMeshes.find((m) => m.userData.roomNumber === roomId);
+    if (!mesh || !mesh.userData.showPanel) {
+        hideRoomPanel();
+        showClickInfo(null);
+        return;
+    }
+
+    showClickInfo(mesh);
+
+    if (highlightedMeshes.includes(mesh)) {
+        const status = mesh.userData.pairStatus;
+        if (status && status !== 'past') {
+            animateMeshColor(mesh, getStatusColor(status, 'bright'));
+            activeHighlightedMesh = mesh;
+        }
+    } else {
+        animateMeshColor(mesh, COLOR_SELECTED);
+        selectedMesh = mesh;
+    }
+
+    showRoomPanel(mesh.userData.roomNumber || '', mesh.userData.roomName);
+}
+
+// Enter и пробел на карточке работают как нажатие мышью.
+pairsContainer.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const card = event.target.closest('.pair-card');
+    if (!card) return;
+    event.preventDefault();
+    card.click();
+});
+
+// обработчик клика по карточке пары
+pairsContainer.addEventListener('click', (event) => {
+    const card = event.target.closest('.pair-card');
+    if (!card) return;
+    const roomId = card.dataset.roomId;
+    if (roomId) {
+        highlightRoomByRoomId(roomId);
+    }
+});
+
+// применение выбранной группы: загрузка и отображение расписания
+// сообщение вместо списка пар: загрузка, ошибка, пустой день.
+function showPairsMessage(text, isError = false) {
+    pairsContainer.innerHTML = '';
+    const message = document.createElement('div');
+    message.className = isError ? 'no-pairs pairs-error' : 'no-pairs';
+    message.textContent = text;
+    pairsContainer.appendChild(message);
+}
+
+async function applyGroup(selectedGroup) {
+    currentGroup = selectedGroup;
+    showPairsMessage('Загружаем расписание…');
+
+    try {
+        const schedule = await fetchSchedule(selectedGroup, currentDate);
+        currentSchedule = schedule;
+        updatePairsUI(schedule);
+        highlightRoomsForSchedule(schedule);
+    } catch (error) {
+        console.error('Не удалось загрузить расписание:', error);
+        currentSchedule = [];
+        showPairsMessage(`Не удалось загрузить расписание: ${error.message}`, true);
+        highlightRoomsForSchedule([]);
+    }
+}
+
+// обновление интерфейса при смене даты
+function refreshForDateChange() {
+    if (currentGroup) {
+        applyGroup(currentGroup);
+    } else {
+        currentSchedule = [];
+        updatePairsUI([]);
+        resetAllRoomsToWhite(true);
+        hideRoomPanel();
+    }
+}
+
+// палитра цветов и параметры анимации
+const COLOR_WHITE = 0xffffff;
+const COLOR_SELECTED = 0xd8d3c4;
+const ANIMATION_DURATION = 350;
+
+const statusColors = {
+    past: { normal: 0xf1e2d9, bright: 0xe6cdbd },
+    current: { normal: 0xdeebe1, bright: 0xb9d7c1 },
+    upcoming: { normal: 0xf3e7ce, bright: 0xe9d3a0 }
+};
+
+// хранилище активных анимаций для возможности отмены
+const activeAnimations = new Map();
+
+// получение текущего цвета меша
+function getMeshColor(mesh) {
+    return Array.isArray(mesh.material) ? mesh.material[0].color.getHex() : mesh.material.color.getHex();
+}
+
+// мгновенная установка цвета
+function setMeshColorInstant(mesh, hexColor) {
+    if (!mesh.material) return;
+    if (Array.isArray(mesh.material)) {
+        mesh.material.forEach((mat) => mat.color.setHex(hexColor));
+    } else {
+        mesh.material.color.setHex(hexColor);
+    }
+    mesh.material.needsUpdate = true;
+}
+
+// плавная анимация изменения цвета
+function animateMeshColor(mesh, targetHex, duration = ANIMATION_DURATION) {
+    if (!mesh.material) return;
+    if (activeAnimations.has(mesh)) {
+        cancelAnimationFrame(activeAnimations.get(mesh));
+        activeAnimations.delete(mesh);
+    }
+    const startColor = new THREE.Color(getMeshColor(mesh));
+    const targetColor = new THREE.Color(targetHex);
+    const startTime = performance.now();
+
+    function step(now) {
+        const t = Math.min((now - startTime) / duration, 1);
+        setMeshColorInstant(mesh, startColor.clone().lerp(targetColor, t).getHex());
+        if (t < 1) {
+            activeAnimations.set(mesh, requestAnimationFrame(step));
+        } else {
+            activeAnimations.delete(mesh);
+        }
+    }
+    activeAnimations.set(mesh, requestAnimationFrame(step));
+}
+
+// сброс всех кабинетов к белому цвету
+function resetAllRoomsToWhite(instant = true) {
+    roomMeshes.forEach((mesh) => {
+        if (mesh.userData.showPanel) {
+            if (instant) setMeshColorInstant(mesh, COLOR_WHITE);
+            else animateMeshColor(mesh, COLOR_WHITE);
+        }
+    });
+}
+
+// получение цвета в зависимости от статуса пары
+function getStatusColor(status, variant = 'normal') {
+    if (status === 'past') return COLOR_WHITE;
+    return statusColors[status]?.[variant] ?? COLOR_WHITE;
+}
+
+// сброс активной подсветки (выбранного или активного кабинета)
+function resetActiveSelection() {
+    if (activeHighlightedMesh) {
+        const status = activeHighlightedMesh.userData.pairStatus;
+        animateMeshColor(activeHighlightedMesh, status && status !== 'past' ? getStatusColor(status, 'normal') : COLOR_WHITE);
+        activeHighlightedMesh = null;
+    }
+    if (selectedMesh) {
+        animateMeshColor(selectedMesh, COLOR_WHITE);
+        selectedMesh = null;
+    }
+}
+
+// обработка клика по 3d-сцене
+function handleClick(event) {
+    const clientX = event.clientX ?? event.touches?.[0]?.clientX;
+    const clientY = event.clientY ?? event.touches?.[0]?.clientY;
+    if (clientX == null || clientY == null) return;
+
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(roomMeshes, false);
+
+    resetActiveSelection();
+
+    if (intersects.length === 0) {
+        hideRoomPanel();
+        showClickInfo(null);
+        return;
+    }
+
+    const mesh = intersects[0].object;
+    const userData = mesh.userData;
+    // подпись показываем для любого объекта, даже если карточки у него нет
+    showClickInfo(mesh);
+
+    if (highlightedMeshes.includes(mesh)) {
+        const status = mesh.userData.pairStatus;
+        if (status && status !== 'past') animateMeshColor(mesh, getStatusColor(status, 'bright'));
+        activeHighlightedMesh = mesh;
+        showRoomPanel(userData.roomNumber, userData.roomName);
+    } else if (userData.showPanel) {
+        animateMeshColor(mesh, COLOR_SELECTED);
+        selectedMesh = mesh;
+        showRoomPanel(userData.roomNumber || '', userData.roomName);
+    } else {
+        hideRoomPanel();
+    }
+}
+
+// регистрация событий pointer и touch для различения клика и перетаскивания
+renderer.domElement.addEventListener('pointerdown', (event) => {
+    isPointerDown = true;
+    pointerDownPos.set(event.clientX, event.clientY);
+});
+renderer.domElement.addEventListener('pointerup', (event) => {
+    if (!isPointerDown) return;
+    isPointerDown = false;
+    const dx = event.clientX - pointerDownPos.x;
+    const dy = event.clientY - pointerDownPos.y;
+    if (Math.hypot(dx, dy) < DRAG_THRESHOLD) handleClick(event);
+});
+renderer.domElement.addEventListener('touchstart', (event) => {
+    if (event.touches.length === 1) {
+        isPointerDown = true;
+        pointerDownPos.set(event.touches[0].clientX, event.touches[0].clientY);
+    } else {
+        isPointerDown = false;
+    }
+});
+renderer.domElement.addEventListener('touchend', (event) => {
+    if (!isPointerDown) return;
+    isPointerDown = false;
+    const touch = event.changedTouches[0];
+    if (Math.hypot(touch.clientX - pointerDownPos.x, touch.clientY - pointerDownPos.y) < DRAG_THRESHOLD) {
+        handleClick(touch);
+    }
+});
+
+// функции работы с панелью кабинета
+function showRoomPanel(roomNumber, roomName) {
+    roomPanelTitle.textContent = `${roomName}${roomNumber ? ` (${roomNumber})` : ''}`;
+    roomPanelContent.innerHTML = '';
+
+    const roomPairs = currentSchedule.filter((p) => p.roomId === roomNumber);
+    if (roomPairs.length === 0) {
+        roomPanelContent.innerHTML = '<p>Нет пар на выбранную дату</p>';
+    } else {
+        roomPairs.forEach((pair) => {
+            const item = document.createElement('div');
+            item.className = `room-pair-item ${getPairStatus(pair)}`;
+            item.innerHTML = `
+                <span class="room-pair-date">${pair.time}</span>
+                <div class="room-pair-group">${pair.name}</div>
+                <div class="room-pair-teacher">${pair.teacher || 'Преподаватель не указан'}</div>
+            `;
+            roomPanelContent.appendChild(item);
+        });
+    }
+    roomPanel.classList.add('visible');
+}
+
+function hideRoomPanel() {
+    roomPanel.classList.remove('visible');
+    // карточку закрыли — кнопка «Назад» больше не нужна
+    roomPanel.classList.remove('can-return');
+    scheduleCollapsedForRoom = false;
+}
+
+// обработчики закрытия панели кабинета
+roomPanelClose.addEventListener('click', () => {
+    resetActiveSelection();
+    hideRoomPanel();
+});
+
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && roomPanel.classList.contains('visible')) {
+        resetActiveSelection();
+        hideRoomPanel();
+    }
+});
+
+document.addEventListener('pointerdown', (event) => {
+    if (!roomPanel.classList.contains('visible')) return;
+    if (roomPanel.contains(event.target) || renderer.domElement.contains(event.target)) return;
+    // кнопки «Подробнее» и «Скрыть» лежат поверх карты, но к карточке
+    // кабинета отношения не имеют — по ним она закрываться не должна
+    if (event.target.closest('.legend-btn')) return;
+    resetActiveSelection();
+    hideRoomPanel();
+});
+
+// управление сайдбаром
+function setSidebarOpen(open) {
+    sidebar.classList.toggle('open', open);
+    sidebar.setAttribute('aria-hidden', String(!open));
+    sidebarToggle.setAttribute('aria-expanded', String(open));
+}
+
+sidebarToggle.addEventListener('click', () => setSidebarOpen(!sidebar.classList.contains('open')));
+
+// Кнопки «Применить» больше нет: группу применяет открытие расписания,
+// см. applySelectedGroupIfNeeded ниже.
+
+// обработчики смены даты
+dateInput.addEventListener('change', () => {
+    if (!dateInput.value) {
+        dateInput.value = currentDate;
+        return;
+    }
+    currentDate = dateInput.value;
+    refreshForDateChange();
+});
+
+prevDayBtn.addEventListener('click', () => {
+    const date = parseDateString(currentDate);
+    date.setDate(date.getDate() - 1);
+    currentDate = getDateString(date);
+    dateInput.value = currentDate;
+    refreshForDateChange();
+});
+
+nextDayBtn.addEventListener('click', () => {
+    const date = parseDateString(currentDate);
+    date.setDate(date.getDate() + 1);
+    currentDate = getDateString(date);
+    dateInput.value = currentDate;
+    refreshForDateChange();
+});
+
+// переключение этажей
+function setFloor(floor) {
+    currentFloor = floor;
+
+    floorNumbers.forEach((span) => {
+        const isActive = parseInt(span.dataset.floor, 10) === floor;
+        span.classList.toggle('active', isActive);
+        span.setAttribute('aria-current', isActive ? 'true' : 'false');
+    });
+
+    const hasModel = Boolean(FLOOR_MODELS[floor]);
+    stubOverlay.classList.toggle('visible', !hasModel);
+
+    currentSchedule = [];
+    updatePairsUI([]);
+    hideRoomPanel();
+    showClickInfo(null);
+
+    if (hasModel) {
+        // модель грузится заново; расписание подтянется в ее колбэке
+        loadFloorModel(floor);
+    } else {
+        resetAllRoomsToWhite(true);
+        highlightedMeshes = [];
+        selectedMesh = null;
+        activeHighlightedMesh = null;
+    }
+}
+
+floorNumbers.forEach((span) => {
+    span.addEventListener('click', () => setFloor(parseInt(span.dataset.floor, 10)));
+    span.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            setFloor(parseInt(span.dataset.floor, 10));
+        }
+    });
+});
+
+setFloor(currentFloor);
+
+// Переход на страницу недельного расписания.
+//
+// Кнопка «На неделю» сейчас закомментирована в разметке, поэтому
+// getElementById вернул null. Раньше на этом месте скрипт обрывался
+// и переставало работать всё, что регистрируется ниже: закрытие
+// сайдбара, свайпы, сброс вида, применение группы. Проверка ниже
+// делает обработчик необязательным — вернёте кнопку в index.html,
+// и переход заработает сам, без правок здесь.
+if (weekDetailsBtn) {
+    weekDetailsBtn.addEventListener('click', () => {
+        const params = new URLSearchParams({ group: currentGroup || '', floor: currentFloor });
+        window.location.href = `${WEEK_SCHEDULE_PAGE_URL}?${params.toString()}`;
+    });
+}
+
+// основной цикл анимации
+function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+// Обработка изменения размеров контейнера.
+//
+// Раньше здесь вызывался controls.handleResize() — такого метода у
+// OrbitControls нет, и обработчик падал с ошибкой на каждом ресайзе.
+// Из-за этого же не пересчитывались границы видимой области камеры:
+// ортокамера, в отличие от перспективной, не выводит их из размера
+// холста сама, и модель растягивалась при смене размера окна.
+// Высоту области оставляем прежней, а ширину заново считаем из пропорций.
+const resizeObserver = new ResizeObserver(() => {
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    if (!width || !height) return;
+
+    renderer.setSize(width, height);
+
+    const frustumHeight = camera.top - camera.bottom;
+    const aspect = width / height;
+    camera.left = -frustumHeight * aspect / 2;
+    camera.right = frustumHeight * aspect / 2;
+    camera.updateProjectionMatrix();
+});
+resizeObserver.observe(container);
+
+// свайп от левого края для открытия сайдбара на мобильных
+const SWIPE_EDGE_THRESHOLD = 24;
+const SWIPE_MIN_DISTANCE = 60;
+let swipeStartX = null;
+let swipeStartY = null;
+let isSwipeGesture = false;
+
+document.addEventListener('touchstart', (event) => {
+    if (event.touches.length !== 1) return;
+
+    const touch = event.touches[0];
+    if (touch.clientX <= SWIPE_EDGE_THRESHOLD) {
+        swipeStartX = touch.clientX;
+        swipeStartY = touch.clientY;
+        isSwipeGesture = true;
+    } else {
+        swipeStartX = null;
+        swipeStartY = null;
+        isSwipeGesture = false;
+    }
+}, { passive: true });
+
+document.addEventListener('touchmove', (event) => {
+    if (!isSwipeGesture || swipeStartX === null || swipeStartY === null) return;
+
+    const touch = event.touches[0];
+    const deltaX = touch.clientX - swipeStartX;
+    const deltaY = touch.clientY - swipeStartY;
+
+    if (deltaX > SWIPE_MIN_DISTANCE && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+        if (!sidebar.classList.contains('open')) {
+            setSidebarOpen(true);
+        }
+        isSwipeGesture = false;
+        swipeStartX = null;
+        swipeStartY = null;
+        event.preventDefault();
+    }
+}, { passive: false });
+
+document.addEventListener('touchend', () => {
+    isSwipeGesture = false;
+    swipeStartX = null;
+    swipeStartY = null;
+});
+
+// Нажатие по затемнению позади шторки закрывает её — привычное
+// поведение мобильных панелей. На десктопе затемнения не видно
+// и нажатий оно не ловит, поэтому обработчик там не срабатывает.
+document.getElementById('sidebar-scrim').addEventListener('click', () => {
+    setSidebarOpen(false);
+});
+
+// закрытие сайдбара кнопкой-крестиком (показывается на мобильных)
+document.getElementById('sidebar-close').addEventListener('click', () => {
+    setSidebarOpen(false);
+});
+
+// важнейшая функция // 
+const stubVideo = document.querySelector('.stub-video');
+if (stubVideo) {
+    stubOverlay.addEventListener('click', () => {
+        stubVideo.muted = !stubVideo.muted;
+        if (stubVideo.paused) stubVideo.play();
+    });
+}
+
+// ---------------------------------------------------------------------------
+// ШТОРКА РАСПИСАНИЯ
+//
+// Открыта она или нет — хранит скрытый чекбокс #schedule-toggle в сайдбаре.
+// Css смотрит на него сам (правило :has в styles.css), поэтому здесь мы
+// только переключаем галочку, а показом занимаются стили.
+//
+// Открыть можно тремя способами: кнопкой в сайдбаре, свайпом снизу вверх
+// и программно. Закрыть — кнопкой, свайпом вниз, кликом мимо панели
+// или клавишей Escape.
+// ---------------------------------------------------------------------------
+const scheduleToggle = document.getElementById('schedule-toggle');
+const schedulePanel = document.getElementById('schedule-panel');
+
+// Полоса у нижнего края экрана, с которой начинается жест открытия (в пикселях).
+const SHEET_EDGE_THRESHOLD = 32;
+// Насколько далеко нужно провести пальцем, чтобы это посчиталось свайпом,
+// а не случайным касанием.
+const SHEET_MIN_DISTANCE = 60;
+
+let sheetStartX = null;
+let sheetStartY = null;
+let sheetFromBottomEdge = false;
+
+// Открывая расписание, сразу подтягиваем выбранную в списке группу.
+// Благодаря этому на телефоне достаточно одного нажатия: выбрал группу —
+// нажал «Показать расписание». Отдельное «Применить» больше не нужно,
+// но продолжает работать как раньше.
+function applySelectedGroupIfNeeded() {
+    const selectedGroup = groupSelect.value;
+    if (selectedGroup && selectedGroup !== currentGroup) {
+        applyGroup(selectedGroup);
+        // группа сменилась — карточка старого кабинета уже неактуальна
+        hideRoomPanel();
+    }
+}
+
+// На телефоне сайдбар выезжает поверх карты. Если оставить его открытым,
+// нажатие на пару подсветит кабинет, но самого кабинета видно не будет —
+// поэтому вместе с расписанием закрываем сайдбар. На широком экране он
+// карту не перекрывает, там закрывать нечего.
+function closeSidebarOnNarrowScreen() {
+    if (window.matchMedia('(max-width: 768px)').matches) {
+        setSidebarOpen(false);
+    }
+}
+
+// Единая точка открытия и закрытия шторки: и свайп, и кнопка,
+// и клик мимо панели проходят через неё.
+function setScheduleOpen(open) {
+    if (scheduleToggle.checked === open) return;
+    scheduleToggle.checked = open;
+    if (open) {
+        applySelectedGroupIfNeeded();
+        closeSidebarOnNarrowScreen();
+    }
+    // карта перестаёт реагировать на жесты, пока шторка открыта:
+    // за визуальную часть отвечает css, за three.js — controls
+    controls.enabled = !open;
+}
+
+document.addEventListener('touchstart', (event) => {
+    if (event.touches.length !== 1) {
+        sheetStartY = null;
+        return;
+    }
+    const touch = event.touches[0];
+    sheetStartX = touch.clientX;
+    sheetStartY = touch.clientY;
+    sheetFromBottomEdge = touch.clientY >= window.innerHeight - SHEET_EDGE_THRESHOLD;
+}, { passive: true });
+
+document.addEventListener('touchmove', (event) => {
+    if (sheetStartY === null || event.touches.length !== 1) return;
+
+    const touch = event.touches[0];
+    // deltaY меньше нуля — палец идёт вверх, больше нуля — вниз
+    const deltaY = touch.clientY - sheetStartY;
+    const deltaX = touch.clientX - sheetStartX;
+
+    // жест должен быть достаточно длинным и заметно вертикальным
+    if (Math.abs(deltaY) < SHEET_MIN_DISTANCE || Math.abs(deltaY) < Math.abs(deltaX) * 1.5) return;
+
+    if (deltaY < 0 && sheetFromBottomEdge && !scheduleToggle.checked) {
+        setScheduleOpen(true);
+        sheetStartY = null;
+    } else if (deltaY > 0 && scheduleToggle.checked && schedulePanel.contains(event.target)) {
+        // вниз закрываем только если список прокручен в самое начало,
+        // иначе жест принадлежит прокрутке списка пар
+        if (pairsContainer.scrollTop <= 0) {
+            setScheduleOpen(false);
+            sheetStartY = null;
+        }
+    }
+}, { passive: true });
+
+document.addEventListener('touchend', () => {
+    sheetStartY = null;
+    sheetFromBottomEdge = false;
+});
+
+// клик вне шторки закрывает её (кнопка в сайдбаре продолжает переключать сама)
+document.addEventListener('pointerdown', (event) => {
+    if (!scheduleToggle.checked) return;
+    if (schedulePanel.contains(event.target)) return;
+    if (event.target.closest('.sidebar-action')) return;
+    setScheduleOpen(false);
+});
+
+// Кнопка «Показать расписание» — это label чекбокса, она меняет его сама,
+// минуя setScheduleOpen. Поэтому повторяем здесь те же три действия.
+scheduleToggle.addEventListener('change', () => {
+    if (scheduleToggle.checked) {
+        applySelectedGroupIfNeeded();
+        closeSidebarOnNarrowScreen();
+    }
+    controls.enabled = !scheduleToggle.checked;
+});
+
+// escape закрывает шторку
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && scheduleToggle.checked) setScheduleOpen(false);
+});
+
+// ---------------------------------------------------------------------------
+// ПЕРЕХОД «ПАРА → КАБИНЕТ → НАЗАД»
+//
+// На телефоне открытое расписание занимает пол-экрана, и карточка кабинета
+// вместе с ним почти не оставляет места карте. Поэтому при нажатии на пару
+// расписание сворачивается, а в карточке появляется кнопка «Назад»,
+// возвращающая его обратно. На широком экране места хватает, там ничего
+// не сворачивается и кнопка не показывается.
+// ---------------------------------------------------------------------------
+
+// Этот обработчик добавлен вторым: сначала срабатывает тот, что выше по файлу
+// и открывает карточку кабинета, и только потом сворачивается расписание.
+pairsContainer.addEventListener('click', (event) => {
+    if (!event.target.closest('.pair-card')) return;
+    if (!scheduleToggle.checked) return;
+    if (!window.matchMedia('(max-width: 768px)').matches) return;
+    // Кабинета может не оказаться на плане этажа — тогда карточка не
+    // открылась, и сворачивать расписание не за чем: иначе пользователь
+    // терял список и не получал ничего взамен.
+    if (!roomPanel.classList.contains('visible')) return;
+
+    scheduleCollapsedForRoom = true;
+    roomPanel.classList.add('can-return');   // css покажет кнопку «Назад»
+    setScheduleOpen(false);
+});
+
+// «Назад»: прячем карточку и возвращаем расписание на место
+roomPanelBack.addEventListener('click', () => {
+    const shouldReopen = scheduleCollapsedForRoom;
+    hideRoomPanel();
+    if (shouldReopen) setScheduleOpen(true);
+});
+
+
+// кнопка Сбросить вид: возвращает камеру в исходное положение,
+// если пользователь увёл карту зумом или перетаскиванием
+document.getElementById('reset-view').addEventListener('click', () => {
+    if (loadedModel) fitCameraToModel(loadedModel);
+});
+
+// ---------------------------------------------------------------------------
+// ВЫБОР ГРУППЫ: направление -> список групп -> подтверждение
+//
+// Список групп берётся из api: отдельного эндпоинта для него нет, поэтому
+// собираем уникальные группы из уроков ближайших недель. Направление
+// вычисляем по префиксу названия (ИС-21 -> ИС), других данных о
+// специальности api не отдаёт.
+//
+// Кнопка «Выбрать группу» неактивна, пока группа в списке не отмечена:
+// нажатие сохраняет выбор, и дальше видна только выбранная группа.
+// ---------------------------------------------------------------------------
+const GROUP_STORAGE_KEY = 'intermap.selectedGroup';
+
+const groupPickBtn = document.getElementById('group-pick-btn');
+const groupPickerPanel = document.getElementById('group-picker-panel');
+const directionSelect = document.getElementById('direction-select');
+const groupStatus = document.getElementById('group-status');
+const groupConfirmBtn = document.getElementById('group-confirm-btn');
+const groupCurrent = document.getElementById('group-current');
+const groupCurrentName = document.getElementById('group-current-name');
+const groupChangeBtn = document.getElementById('group-change-btn');
+
+// три состояния блока: 'empty' — кнопка, 'picking' — выбор, 'chosen' — готово
+function showGroupState(state) {
+    groupPickBtn.hidden = state !== 'empty';
+    groupPickerPanel.hidden = state !== 'picking';
+    groupCurrent.hidden = state !== 'chosen';
+}
+
+function setGroupStatus(text, isError = false) {
+    groupStatus.textContent = text;
+    groupStatus.classList.toggle('is-error', isError);
+}
+
+// группы из api: тянем уроки ближайших недель и собираем уникальные названия
+// В поле group приходит сразу несколько групп: через запятую или пробел
+// («01-25.Р.ОФ.9 01-26.Р.ОФ.11»). Разбираем на отдельные названия.
+function splitGroupField(value) {
+    return (value || '')
+        .split(/[,\s]+/)
+        // в данных попадаются названия с точкой с запятой на конце —
+        // без чистки одна и та же группа попадала бы в список дважды
+        .map((name) => name.trim().replace(/^[;.]+|[;.]+$/g, ''))
+        .filter(Boolean);
+}
+
+// Направление — вторая часть названия между точками:
+// «01-23.ИСИП.ОФ.9» -> «ИСИП». Регистр приводим к верхнему, потому что
+// в данных встречаются и «ИСИП», и «ИСиП».
+function directionOf(groupName) {
+    const parts = groupName.split('.');
+    const code = (parts[1] || parts[0] || '').trim();
+    return code ? code.toUpperCase() : 'Прочие';
+}
+
+async function loadGroupCatalog() {
+    const params = new URLSearchParams({ limit: String(GROUPS_SCAN_LIMIT) });
+    const lessons = await fetchFromApi(LESSONS_ENDPOINT, params);
+
+    const names = new Set();
+    lessons.forEach((lesson) => {
+        splitGroupField(lesson.group).forEach((name) => names.add(name));
+    });
+
+    const byDirection = new Map();
+    [...names].sort((a, b) => a.localeCompare(b, 'ru')).forEach((name) => {
+        const code = directionOf(name);
+        if (!byDirection.has(code)) byDirection.set(code, []);
+        byDirection.get(code).push(name);
+    });
+
+    return [...byDirection.entries()]
+        .sort((a, b) => a[0].localeCompare(b[0], 'ru'))
+        .map(([title, groups]) => ({ id: title, title, groups }));
+}
+
+// заполняем селектор направлений
+function fillDirections() {
+    directionSelect.length = 1;
+
+    groupCatalog.forEach((direction) => {
+        const option = document.createElement('option');
+        option.value = direction.id;
+        option.textContent = direction.title;
+        directionSelect.appendChild(option);
+    });
+}
+
+// группы выбранного направления во втором селекторе
+function fillGroups(directionId) {
+    const direction = groupCatalog.find((item) => item.id === directionId);
+
+    groupSelect.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = direction ? 'Выберите группу' : 'Сначала выберите направление';
+    groupSelect.appendChild(placeholder);
+
+    if (direction) {
+        direction.groups.forEach((name) => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            groupSelect.appendChild(option);
+        });
+    }
+
+    groupSelect.disabled = !direction;
+    groupConfirmBtn.disabled = true;
+    setGroupStatus(direction ? `Групп в направлении: ${direction.groups.length}` : 'Сначала выберите направление');
+}
+
+// подтверждение: сохраняем выбор и показываем только выбранную группу
+function confirmGroup(name) {
+    groupCurrentName.textContent = name;
+    try {
+        localStorage.setItem(GROUP_STORAGE_KEY, name);
+    } catch (error) {
+        // приватный режим — просто не запоминаем выбор
+    }
+    setGroupStatus('');
+    showGroupState('chosen');
+    if (scheduleToggle.checked) applySelectedGroupIfNeeded();
+}
+
+groupPickBtn.addEventListener('click', () => showGroupState('picking'));
+
+groupChangeBtn.addEventListener('click', () => {
+    // открываем список на текущем выборе: направление подставляем по группе
+    const current = groupCurrentName.textContent;
+    const direction = groupCatalog.find((item) => item.groups.includes(current));
+
+    directionSelect.value = direction ? direction.id : '';
+    fillGroups(directionSelect.value);
+    if (direction) {
+        groupSelect.value = current;
+        groupConfirmBtn.disabled = false;
+    }
+
+    showGroupState('picking');
+});
+
+directionSelect.addEventListener('change', () => fillGroups(directionSelect.value));
+
+// кнопка оживает, только когда в селекторе выбрана группа
+groupSelect.addEventListener('change', () => {
+    groupConfirmBtn.disabled = !groupSelect.value;
+});
+
+groupConfirmBtn.addEventListener('click', () => {
+    if (groupSelect.value) confirmGroup(groupSelect.value);
+});
+
+// стартовая загрузка каталога
+(async function initGroupPicker() {
+    showGroupState('empty');
+    groupPickBtn.disabled = true;
+    setGroupStatus('Загружаем список групп…');
+
+    try {
+        groupCatalog = await loadGroupCatalog();
+        fillDirections();
+        groupPickBtn.disabled = false;
+        setGroupStatus(groupCatalog.length ? 'Сначала выберите направление' : 'Список групп пуст');
+    } catch (error) {
+        console.error('Не удалось загрузить список групп:', error);
+        setGroupStatus(`Не удалось загрузить список групп: ${error.message}`, true);
+        return;
+    }
+
+    // восстановление сохранённого выбора
+    let savedGroup = null;
+    try {
+        savedGroup = localStorage.getItem(GROUP_STORAGE_KEY);
+    } catch (error) {
+        savedGroup = null;
+    }
+
+    // группа могла исчезнуть из расписания — тогда начинаем с чистого листа
+    const savedDirection = groupCatalog.find((direction) => direction.groups.includes(savedGroup));
+    if (savedDirection) {
+        directionSelect.value = savedDirection.id;
+        fillGroups(savedDirection.id);
+        groupSelect.value = savedGroup;
+        confirmGroup(savedGroup);
+    }
+})();
+
+// ---------------------------------------------------------------------------
+// РЕЖИМ ОТЛАДКИ
+//
+// подпись с id объекта нужна только крутым. от обычного пользователя она скрыта и
+// включается двадцатью нажатиями подряд на этаж 2. Столько же нажатий
+// выключает обратно. состояние запоминается в браузере.
+// ---------------------------------------------------------------------------
+const DEBUG_STORAGE_KEY = 'intermap.debug';
+const DEBUG_UNLOCK_TAPS = 20;
+
+let debugTaps = 0;
+
+function setDebugMode(enabled) {
+    document.documentElement.dataset.debug = enabled ? 'on' : 'off';
+    try {
+        localStorage.setItem(DEBUG_STORAGE_KEY, enabled ? 'on' : 'off');
+    } catch (error) {
+        // приватный режим — просто не запоминаем
+    }
+    if (clickInfoDiv) {
+        clickInfoDiv.textContent = enabled ? 'Режим отладки включён' : '';
+    }
+}
+
+floorNumbers.forEach((span) => {
+    span.addEventListener('click', () => {
+        // счётчик считает нажатия подряд: другой этаж сбрасывает его
+        if (span.dataset.floor !== '2') {
+            debugTaps = 0;
+            return;
+        }
+
+        debugTaps += 1;
+        if (debugTaps < DEBUG_UNLOCK_TAPS) return;
+
+        debugTaps = 0;
+        setDebugMode(document.documentElement.dataset.debug !== 'on');
+    });
+});
+
+// восстановление режима после перезагрузки
+try {
+    if (localStorage.getItem(DEBUG_STORAGE_KEY) === 'on') {
+        document.documentElement.dataset.debug = 'on';
+    }
+} catch (error) {
+    // хранилище недоступно — остаёмся в обычном режиме
+}
